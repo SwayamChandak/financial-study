@@ -1,9 +1,0 @@
-{
-  "mcpServers": {
-    "market_data_server": {
-      "command": "python",
-      "args": ["-m", "mcp.servers.market_data_server.server"],
-      "description": "Used for supplemental data lookups during analysis"
-    }
-  }
-}

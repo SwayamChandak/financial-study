@@ -1,9 +1,0 @@
-{
-  "mcpServers": {
-    "document_server": {
-      "command": "python",
-      "args": ["-m", "mcp.servers.document_server.server"],
-      "description": "Reads report templates and writes output documents"
-    }
-  }
-}

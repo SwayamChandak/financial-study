@@ -1,1 +1,0 @@
-"""State schema package."""

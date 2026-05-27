@@ -1,1 +1,0 @@
-"""News MCP server package."""
