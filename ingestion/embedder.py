@@ -1,19 +1,27 @@
 """
-Embedder — converts text chunks into dense vector embeddings.
+Embedder — returns a ready-to-use HuggingFace Embeddings instance.
 
-Responsibilities:
-  - Load the configured embedding model (e.g. OpenAIEmbeddings,
-    HuggingFaceEmbeddings) from config.settings
-  - Accept a list of chunk Documents and produce their embeddings
-  - Return embeddings paired with their source Documents so the store
-    module can insert them together
+Model : sentence-transformers/all-MiniLM-L12-v2
+Dim   : 384
+Norm  : L2-normalized (enables cosine similarity via dot product)
 
-Planned functions:
-  - get_embedder() -> Embeddings
-      Reads the embedding model name from settings and returns a
-      ready-to-use LangChain Embeddings instance.
-
-  - embed_chunks(chunks: list[Document]) -> list[tuple[Document, list[float]]]
-      Calls the embedder in batches (respecting API rate limits) and
-      returns (chunk, embedding_vector) pairs.
+The model is downloaded from HuggingFace Hub on first call and cached
+locally by the sentence-transformers library.
 """
+
+from __future__ import annotations
+
+from langchain_huggingface import HuggingFaceEmbeddings
+
+from config.settings import settings
+
+
+def get_embedder() -> HuggingFaceEmbeddings:
+    """
+    Instantiate and return a HuggingFaceEmbeddings object configured with
+    the model and normalization options from application settings.
+    """
+    return HuggingFaceEmbeddings(
+        model_name=settings.embedding_model_name,
+        encode_kwargs={"normalize_embeddings": settings.embedding_normalize},
+    )

@@ -8,12 +8,20 @@ dependencies = [
     "langgraph>=0.2.0",
     "langchain>=0.3.0",
     "langchain-core>=0.3.0",
+    "langchain-community>=0.3.0",
     "langchain-openai>=0.2.0",
     "langchain-anthropic>=0.3.0",
+    "langchain-huggingface>=0.1.0",
+    "langchain-qdrant>=0.2.0",
+    "langchain-text-splitters>=0.3.0",
     "mcp>=1.0.0",
     "langchain-mcp-adapters>=0.1.0",
     "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
     "python-dotenv>=1.0.0",
+    "qdrant-client>=1.9.0",
+    "pymupdf>=1.24.0",
+    "sentence-transformers>=3.0.0",
 ]
 
 [project.optional-dependencies]
@@ -24,9 +32,8 @@ dev = [
     "mypy>=1.11.0",
 ]
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+[tool.uv]
+package = false
 
 [tool.ruff]
 line-length = 100
