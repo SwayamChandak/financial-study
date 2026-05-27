@@ -100,6 +100,7 @@ def _extract_pdf_metadata(pdf_path: Path) -> dict:
       - chapter_no     : from filename stem (fallback)
       - article_link   : Varsity URL built from chapter_title slug
       - source_path    : absolute path string
+      - seen           : False (for tracking reading progress in the agent)
     """
     module_no = 0
     module_title = ""
@@ -133,6 +134,7 @@ def _extract_pdf_metadata(pdf_path: Path) -> dict:
         "module_title": module_title,
         "chapter_no": chapter_no,
         "chapter_title": chapter_title,
+        "seen": False,  # for tracking reading progress in the agent
     }
 
 

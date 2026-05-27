@@ -1,3 +1,4 @@
 ./codemie
 __pycache__/
 *.pyc
+.env
