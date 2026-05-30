@@ -85,14 +85,14 @@ def get_retriever(
     if module_number is not None:
         conditions.append(
             FieldCondition(
-                key="metadata.module_number",
+                key="metadata.module_no",
                 match=MatchValue(value=module_number),
             )
         )
     if chapter_number is not None:
         conditions.append(
             FieldCondition(
-                key="metadata.chapter_number",
+                key="metadata.chapter_no",
                 match=MatchValue(value=chapter_number),
             )
         )

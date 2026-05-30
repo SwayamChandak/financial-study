@@ -68,7 +68,7 @@ class Settings(BaseSettings):
     graph_recursion_limit: int = Field(default=25)
 
     # Redis — used for persistent progress memory (last_module_no, last_chapter_no)
-    redis_url: str = Field(default="redis://localhost:6379")
+    redis_url: str = Field(default="redis://localhost:6740")
 
 
 settings = Settings()

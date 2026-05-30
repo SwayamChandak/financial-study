@@ -24,8 +24,10 @@ from config.settings import settings
 from graph.state import StudyState
 from ingestion.store import fetch_all_chunks, mark_chunks_seen
 from memory.progress import (
+    ensure_initialized,
     get_current_chapter,
     get_current_module,
+    keys_exist,
     set_current_chapter,
     set_current_module,
 )
@@ -45,6 +47,17 @@ def filter_by_memory(state: StudyState) -> StudyState:
     Returns updated state with:
       current_module, current_chapter, chunks, point_ids, total_chars
     """
+    module_exists, chapter_exists = keys_exist()
+    if not module_exists or not chapter_exists:
+        print(
+            f"[Node 1] Redis keys missing "
+            f"(module_exists={module_exists}, chapter_exists={chapter_exists}). "
+            "Initialising both to 1."
+        )
+        ensure_initialized()
+    else:
+        print("[Node 1] Redis keys found.")
+
     module_no = get_current_module()
     chapter_no = get_current_chapter()
 
@@ -82,6 +95,14 @@ def summarise_chunks(state: StudyState) -> StudyState:
     The summary is printed to the terminal and stored in state["summary"].
     """
     chunks = state["chunks"]
+
+    if not chunks:
+        print(
+            f"[Node 2] No chunks found for Module {state['current_module']}, "
+            f"Chapter {state['current_chapter']} — skipping LLM call."
+        )
+        return {**state, "summary": ""}
+
     total_chars = state["total_chars"]
     target_chars = total_chars // 2
 
@@ -135,9 +156,19 @@ def update_progress(state: StudyState) -> StudyState:
        - If yes  → advance to current_chapter + 1.
        - If no   → advance to current_module + 1, reset chapter to 1.
     3. Persist the new position to Redis.
+
+    If no chunks were found (empty Qdrant), the position is left unchanged
+    so the counter does not escalate across repeated runs.
     """
     current_module = state["current_module"]
     current_chapter = state["current_chapter"]
+
+    if not state["chunks"]:
+        print(
+            f"[Node 3] No chunks were processed for Module {current_module}, "
+            f"Chapter {current_chapter} — position unchanged."
+        )
+        return state
 
     # Step 1 — mark chunks seen in Qdrant
     print(
