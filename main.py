@@ -1,25 +1,66 @@
 """
-Entry point for the financial studying agent system built on LangGraph.
+Entry point — run either the ingestion pipeline or the study workflow.
 
-Two workflows are exposed from here:
-
-  1. Daily Article Workflow
-     - Triggered on a schedule (e.g. cron / APScheduler)
-     - Retrieves study content from the RAG store by module number and
-       chapter number
-     - Refines the retrieved content into a concise article
-     - Delivers the article to the user via the Telegram bot
-
-  2. Chatbot Q&A Workflow
-     - Triggered by an incoming Telegram message from the user
-     - Accepts a free-text question about previously delivered content
-     - Queries the vector DB to retrieve the most relevant stored passages
-     - Generates a grounded answer and replies through the Telegram bot
-
-Steps to implement:
-  1. Load settings (config.settings)
-  2. Build both compiled graphs (graph.builder)
-  3. Start the Telegram bot listener (handles chatbot workflow triggers)
-  4. Register the scheduler job (handles daily article workflow triggers)
-  5. Run the event loop
+Usage:
+    python main.py ingest   --source-dir data
+    python main.py run
 """
+
+from __future__ import annotations
+
+import argparse
+import sys
+
+from dotenv import load_dotenv
+
+
+def run_ingestion(args: argparse.Namespace) -> None:
+    from ingestion.pipeline import run_pipeline
+
+    run_pipeline(args.source_dir)
+
+
+def run_study(args: argparse.Namespace) -> None:  # noqa: ARG001
+    from graph.builder import build_study_graph
+
+    graph = build_study_graph()
+    graph.invoke({})
+
+
+def run_chat(args: argparse.Namespace) -> None:
+    from graph.builder import build_chat_graph
+
+    graph = build_chat_graph()
+    result = graph.invoke({"user_input": args.query})
+    print(result.get("chatbot_response", ""))
+
+
+def main() -> None:
+    load_dotenv()
+
+    parser = argparse.ArgumentParser(
+        description="Financial studying agent — ingestion & AI workflow"
+    )
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    ingest_parser = sub.add_parser("ingest", help="Run the PDF ingestion pipeline")
+    ingest_parser.add_argument(
+        "--source-dir",
+        required=True,
+        help="Path to the directory containing PDF files",
+    )
+    ingest_parser.set_defaults(func=run_ingestion)
+
+    run_parser = sub.add_parser("run", help="Run the AI study workflow")
+    run_parser.set_defaults(func=run_study)
+
+    chat_parser = sub.add_parser("chat", help="Ask a question to the chatbot")
+    chat_parser.add_argument("query", help="Your question about financial markets")
+    chat_parser.set_defaults(func=run_chat)
+
+    args = parser.parse_args()
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()

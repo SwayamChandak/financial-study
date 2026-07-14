@@ -1,0 +1,5 @@
+- add frontend
+- add chatbot
+- check chatbot, if if answers properly or not
+- summary should be longer, and more detailed 
+- check if the decisions work or not, for

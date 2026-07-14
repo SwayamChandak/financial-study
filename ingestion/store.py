@@ -8,6 +8,8 @@ Distance   : Cosine (matches L2-normalized all-MiniLM-L12-v2 embeddings)
 
 from __future__ import annotations
 
+from typing import Any
+
 from langchain_core.documents import Document
 from langchain_core.retrievers import BaseRetriever
 from langchain_qdrant import QdrantVectorStore
@@ -83,14 +85,14 @@ def get_retriever(
     if module_number is not None:
         conditions.append(
             FieldCondition(
-                key="metadata.module_number",
+                key="metadata.module_no",
                 match=MatchValue(value=module_number),
             )
         )
     if chapter_number is not None:
         conditions.append(
             FieldCondition(
-                key="metadata.chapter_number",
+                key="metadata.chapter_no",
                 match=MatchValue(value=chapter_number),
             )
         )
@@ -100,3 +102,115 @@ def get_retriever(
         search_kwargs["filter"] = Filter(must=conditions)
 
     return get_vector_store().as_retriever(search_kwargs=search_kwargs)
+
+
+def fetch_all_chunks(
+    module_no: int,
+    chapter_no: int,
+) -> tuple[list[Document], list[Any]]:
+    """
+    Return *all* stored chunks for the given module and chapter.
+
+    Unlike get_retriever (which uses semantic similarity and a top-k limit),
+    this function scrolls through the entire Qdrant collection and returns
+    every point whose metadata matches the given module_no and chapter_no.
+
+    Args:
+      module_no:   Module number to filter on (``metadata.module_no``).
+      chapter_no:  Chapter number to filter on (``metadata.chapter_no``).
+
+    Returns:
+      A tuple of (documents, point_ids) where:
+        documents  — list of Document objects reconstructed from Qdrant payloads
+        point_ids  — Qdrant point IDs in the same order as documents
+    """
+    client = _get_client()
+    scroll_filter = Filter(
+        must=[
+            FieldCondition(key="metadata.module_no", match=MatchValue(value=module_no)),
+            FieldCondition(key="metadata.chapter_no", match=MatchValue(value=chapter_no)),
+        ]
+    )
+
+    documents: list[Document] = []
+    point_ids: list[Any] = []
+    offset = None
+
+    while True:
+        records, next_offset = client.scroll(
+            collection_name=settings.qdrant_collection,
+            scroll_filter=scroll_filter,
+            with_payload=True,
+            with_vectors=False,
+            limit=100,
+            offset=offset,
+        )
+        for record in records:
+            payload = record.payload or {}
+            doc = Document(
+                page_content=payload.get("page_content", ""),
+                metadata=payload.get("metadata", {}),
+            )
+            documents.append(doc)
+            point_ids.append(record.id)
+
+        if next_offset is None:
+            break
+        offset = next_offset
+
+    return documents, point_ids
+
+
+def search_seen_chunks(query: str, top_k: int = 5) -> list[Document]:
+    """
+    Search Qdrant for chunks whose metadata has ``seen`` set to ``True``.
+
+    Uses semantic similarity search against the vector store, filtering on
+    ``metadata.seen == True`` so that only already-studied content is returned.
+
+    Args:
+      query:  Natural-language question from the user.
+      top_k:  Maximum number of chunks to return (default 5).
+
+    Returns:
+      A list of Document objects whose content is most similar to *query*.
+    """
+    store = get_vector_store()
+    filter_condition = Filter(
+        must=[
+            FieldCondition(
+                key="metadata.seen",
+                match=MatchValue(value=True),
+            )
+        ]
+    )
+    return store.similarity_search(
+        query=query,
+        k=top_k,
+        filter=filter_condition,
+    )
+
+
+def mark_chunks_seen(
+    point_ids: list[Any],
+    chunks: list[Document],
+) -> None:
+    """
+    Set ``seen = True`` in the Qdrant payload for each supplied point.
+
+    The full metadata dict is reconstructed for each point (to avoid
+    overwriting other metadata fields) with ``seen`` set to ``True``,
+    and then written back via ``set_payload``.
+
+    Args:
+      point_ids: Qdrant point IDs returned by ``fetch_all_chunks``.
+      chunks:    Documents in the same order as *point_ids*.
+    """
+    client = _get_client()
+    for point_id, chunk in zip(point_ids, chunks):
+        updated_metadata = {**chunk.metadata, "seen": True}
+        client.set_payload(
+            collection_name=settings.qdrant_collection,
+            payload={"metadata": updated_metadata},
+            points=[point_id],
+        )
