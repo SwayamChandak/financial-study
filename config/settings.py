@@ -63,6 +63,11 @@ class Settings(BaseSettings):
     scheduler_cron: str = Field(default="0 8 * * *")
     scheduler_timezone: str = Field(default="Asia/Kolkata")
 
+    # LangSmith — tracing
+    langsmith_tracing: bool = Field(default=True)
+    langsmith_api_key: str = Field(default="")
+    langsmith_project: str = Field(default="financial-study")
+
     # Graph
     graph_recursion_limit: int = Field(default=25)
 
