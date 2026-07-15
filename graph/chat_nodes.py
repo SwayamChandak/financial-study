@@ -1,13 +1,18 @@
 """
 Graph nodes — chatbot pipeline.
 
-Node 1  guardrail_node     checks user input for abusive/sexual language
-                           and prompt injection attempts. If flagged, sets
-                           a response and marks the guardrail flag.
+Node 1  guardrail_node         checks user input for abusive/sexual language
+                               and prompt injection attempts. If flagged, sets
+                               a response and marks the guardrail flag.
 
-Node 2  rag_lookup_node    verifies the query is about financial/stock
-                           markets, searches seen-only Qdrant chunks,
-                           and answers with an LLM.
+Node 2  rag_lookup_node        verifies the query is about financial/stock
+                               markets, searches seen-only Qdrant chunks,
+                               and answers with an LLM.
+
+Node 3  validate_response_node checks if the RAG answer is descriptive and
+                               in-depth. If not (and retries remain), it
+                               updates the search query for a better RAG
+                               retrieval.
 """
 
 from __future__ import annotations
@@ -140,7 +145,8 @@ def rag_lookup_node(state: StudyState) -> StudyState:
         }
 
     # ── Step 2: search seen-only chunks ─────────────────────────────────
-    results = search_seen_chunks(user_input, top_k=settings.rag_top_k)
+    search_query = state.get("rag_search_query") or user_input
+    results = search_seen_chunks(search_query, top_k=settings.rag_top_k)
 
     if not results:
         print("[RAG] No seen chunks found for the query.")
@@ -149,7 +155,15 @@ def rag_lookup_node(state: StudyState) -> StudyState:
             "chatbot_response": "can't find answer, sorry bro",
         }
 
-    # ── Step 3: answer with context ─────────────────────────────────────
+    # ── Step 3: extract source info from retrieved chunks ──────────────
+    sources: set[tuple[int, int]] = set()
+    for doc in results:
+        mod = doc.metadata.get("module_no")
+        ch = doc.metadata.get("chapter_no")
+        if mod is not None and ch is not None:
+            sources.add((int(mod), int(ch)))
+
+    # ── Step 4: answer with context ─────────────────────────────────────
     context = "\n\n".join(
         doc.page_content for doc in results
     )
@@ -160,7 +174,7 @@ def rag_lookup_node(state: StudyState) -> StudyState:
                 "You are a helpful financial assistant. Answer the user's "
                 "question based on the provided context. If the context "
                 "does not contain enough information to answer, say "
-                "'can't find answer, sorry bro'. Be concise."
+                "'can't find answer, sorry bro'. Be descriptive and in-depth."
             )
         ),
         HumanMessage(content=f"Context:\n{context}\n\nQuestion: {user_input}"),
@@ -168,7 +182,14 @@ def rag_lookup_node(state: StudyState) -> StudyState:
 
     answer = response.content.strip()
 
-    # ── Step 4: persist conversation history ────────────────────────────
+    # ── Step 5: append source citation ──────────────────────────────────
+    if sources:
+        source_text = ", ".join(
+            sorted(f"Module {m}, Chapter {c}" for m, c in sources)
+        )
+        answer += f"\n\n— *Source: {source_text}*"
+
+    # ── Step 6: persist conversation history ────────────────────────────
     messages = list(state.get("messages", []))
     messages.append(HumanMessage(content=user_input))
     messages.append(AIMessage(content=answer))
@@ -179,4 +200,88 @@ def rag_lookup_node(state: StudyState) -> StudyState:
         **state,
         "messages": messages,
         "chatbot_response": answer,
+        "rag_search_query": "",
+    }
+
+
+def validate_response_node(state: StudyState) -> StudyState:
+    """
+    Check whether the RAG answer is descriptive and in-depth.
+
+    If it passes → do nothing (set ``validation_passed = True``).
+    If it fails and ``rag_retry_count < 3`` → increment the counter,
+    generate an improved search query, and let the conditional edge
+    route back to ``rag_lookup_node`` for a retry.
+    If it fails and ``rag_retry_count >= 3`` → pass through (edge
+    will route to END with whatever we have).
+    """
+    answer = state.get("chatbot_response", "")
+    user_input = state.get("user_input", "")
+    retry_count = state.get("rag_retry_count", 0)
+
+    load_dotenv()
+    llm = init_chat_model(settings.llm_model_name, temperature=0.0)
+
+    # ── check if answer is descriptive enough ──────────────────────────
+    check = llm.invoke([
+        SystemMessage(
+            content=(
+                "You are a strict quality inspector. Answer only with a single word: "
+                "'PASS' or 'FAIL'. Does the following answer provide a descriptive, "
+                "in-depth response to the user's question? A FAIL answer is one that "
+                "is vague, too short, lacks detail, or says it can't find the answer. "
+                "A PASS answer is substantive, well-explained, and demonstrates "
+                "understanding of the topic."
+            )
+        ),
+        HumanMessage(content=f"Question: {user_input}\n\nAnswer: {answer}"),
+    ])
+
+    passed = "PASS" in check.content.strip().upper()
+
+    if passed:
+        return {
+            **state,
+            "validation_passed": True,
+        }
+
+    # ── not descriptive enough ─────────────────────────────────────────
+    if retry_count >= 3:
+        print(f"[Validate] Answer failed validation, max retries ({retry_count}) reached.")
+        note = (
+            "\n\n— *Note: I've tried my best with the available study material "
+            "but couldn't find a fully detailed explanation. Consider studying "
+            "more chapters to get broader context.*"
+        )
+        return {
+            **state,
+            "chatbot_response": answer + note,
+            "validation_passed": False,
+        }
+
+    # ── generate a better search query ─────────────────────────────────
+    new_retry_count = retry_count + 1
+    print(f"[Validate] Answer not descriptive enough — retry {new_retry_count}/3 …")
+
+    improved_query = llm.invoke([
+        SystemMessage(
+            content=(
+                "You are a search query rewriter. The user asked a question but the "
+                "retrieved content did not produce a sufficiently detailed answer. "
+                "Rewrite the user's question into a more specific, detailed search "
+                "query that will retrieve deeper, more comprehensive information "
+                "from a financial knowledge base. Output ONLY the rewritten query, "
+                "no explanation."
+            )
+        ),
+        HumanMessage(content=user_input),
+    ])
+
+    new_query = improved_query.content.strip()
+
+    return {
+        **state,
+        "rag_retry_count": new_retry_count,
+        "rag_search_query": new_query,
+        "validation_passed": False,
     }

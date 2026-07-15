@@ -15,6 +15,9 @@ Chatbot fields:
   session_id            — unique identifier for the current chat session
   messages              — conversation history as LangChain message objects
   user_input            — the most recent user query / input
+  validation_passed     — set to True by validate node when the RAG answer passes quality check
+  rag_retry_count       — number of times RAG has been retried (0..3, reset per query)
+  rag_search_query      — improved search query for retry (empty = use original user_input)
 """
 
 from __future__ import annotations
@@ -43,3 +46,6 @@ class StudyState(TypedDict):
     user_input: str
     guardrail_flagged: bool
     chatbot_response: str
+    validation_passed: bool
+    rag_retry_count: int
+    rag_search_query: str

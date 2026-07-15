@@ -5,7 +5,10 @@ Pipeline (study):
   START → filter_by_memory → summarise_chunks → update_progress → END
 
 Pipeline (chat):
-  START → guardrail_node → (flagged → END | clean → rag_lookup_node) → END
+  START → guardrail_node
+       → (flagged → END | clean → rag_lookup_node)
+       → validate_response_node
+       → (valid → END | retry → rag_lookup_node | max_retries → END)
 
 Usage:
     from graph.builder import build_study_graph, build_chat_graph
@@ -21,7 +24,11 @@ from __future__ import annotations
 
 from langgraph.graph import END, START, StateGraph
 
-from graph.chat_nodes import guardrail_node, rag_lookup_node
+from graph.chat_nodes import (
+    guardrail_node,
+    rag_lookup_node,
+    validate_response_node,
+)
 from graph.nodes import filter_by_memory, summarise_chunks, update_progress
 from graph.state import StudyState
 
@@ -29,6 +36,21 @@ from graph.state import StudyState
 def _decide_after_guardrail(state: StudyState) -> str:
     """Return ``"flagged"`` when the guardrail fired, else ``"clean"``."""
     return "flagged" if state.get("guardrail_flagged") else "clean"
+
+
+def _decide_after_validation(state: StudyState) -> str:
+    """
+    Route after the validation node.
+
+    - ``"valid"``        → the answer passed validation → END
+    - ``"max_retries"``  → retry count >= 3 → END
+    - ``"retry"``        → failed validation, retries remain → rag_lookup_node
+    """
+    if state.get("validation_passed", False):
+        return "valid"
+    if state.get("rag_retry_count", 0) >= 3:
+        return "max_retries"
+    return "retry"
 
 
 def build_study_graph() -> StateGraph:
@@ -65,6 +87,7 @@ def build_chat_graph() -> StateGraph:
 
     builder.add_node("guardrail_node", guardrail_node)
     builder.add_node("rag_lookup_node", rag_lookup_node)
+    builder.add_node("validate_response_node", validate_response_node)
 
     builder.add_edge(START, "guardrail_node")
     builder.add_conditional_edges(
@@ -72,7 +95,16 @@ def build_chat_graph() -> StateGraph:
         _decide_after_guardrail,
         {"flagged": END, "clean": "rag_lookup_node"},
     )
-    builder.add_edge("rag_lookup_node", END)
+    builder.add_edge("rag_lookup_node", "validate_response_node")
+    builder.add_conditional_edges(
+        "validate_response_node",
+        _decide_after_validation,
+        {
+            "valid": END,
+            "retry": "rag_lookup_node",
+            "max_retries": END,
+        },
+    )
 
     return builder.compile()
 

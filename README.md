@@ -50,6 +50,32 @@ cp .env.example .env
 
 ## Running
 
+### CLI chatbot
+
 ```bash
-python main.py
+python -m frontend.cli
+```
+
+### Web server + UI
+
+Build the UI (first time or after changes):
+
+```bash
+cd frontend/ui
+npm run build
+cd ../..
+```
+
+Start the server:
+
+```bash
+python -m frontend.server
+```
+
+Then open http://127.0.0.1:8000 in your browser.
+
+### One-off query
+
+```bash
+python main.py chat "your question"
 ```
