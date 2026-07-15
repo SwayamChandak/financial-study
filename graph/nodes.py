@@ -1,17 +1,22 @@
 """
-Graph nodes — the three processing steps of the daily study pipeline.
+Graph nodes — the processing steps of the daily study pipeline.
 
-Node 1  filter_by_memory    reads current position from Redis, fetches all
-                             chunks for that module+chapter from Qdrant, and
-                             computes the total character count from metadata.
+Node 1  filter_by_memory       reads current position from Redis, fetches all
+                                chunks for that module+chapter from Qdrant, and
+                                computes the total character count from metadata.
 
-Node 2  summarise_chunks     calls the configured LLM to produce a summary of
-                             the chapter content whose length is ~half the
-                             total character count; prints the result.
+Node 2  summarise_chunks       calls the configured LLM to produce a descriptive,
+                                in-depth summary of the chapter content whose
+                                length is between half and three-quarters of the
+                                original chapter character count; prints the result.
 
-Node 3  update_progress      marks all retrieved chunks as seen in Qdrant,
-                             then advances the Redis pointers to the next
-                             chapter (or next module if no next chapter exists).
+Node 3  validate_summary_node  checks the summary for descriptiveness and length
+                                constraints. On failure (and retries < 3) routes
+                                back to summarise_chunks for a retry.
+
+Node 4  update_progress        marks all retrieved chunks as seen in Qdrant,
+                                then advances the Redis pointers to the next
+                                chapter (or next module if no next chapter exists).
 """
 
 from __future__ import annotations
@@ -79,6 +84,8 @@ def filter_by_memory(state: StudyState) -> StudyState:
         "chunks": chunks,
         "point_ids": point_ids,
         "total_chars": total_chars,
+        "summary_retry_count": 0,
+        "summary_validation_passed": False,
     }
 
 
@@ -89,9 +96,10 @@ def filter_by_memory(state: StudyState) -> StudyState:
 
 def summarise_chunks(state: StudyState) -> StudyState:
     """
-    Use the configured LLM to produce a chapter summary.
+    Use the configured LLM to produce a descriptive, in-depth chapter summary.
 
-    Target length: state["total_chars"] // 2 characters.
+    Target length: between ``total_chars // 2`` (minimum) and
+    ``total_chars * 3 // 4`` (maximum) characters.
     The summary is printed to the terminal and stored in state["summary"].
     """
     chunks = state["chunks"]
@@ -104,7 +112,8 @@ def summarise_chunks(state: StudyState) -> StudyState:
         return {**state, "summary": ""}
 
     total_chars = state["total_chars"]
-    target_chars = total_chars // 2
+    min_chars = total_chars // 2
+    max_chars = total_chars * 3 // 4
 
     combined_text = "\n\n".join(chunk.page_content for chunk in chunks)
 
@@ -117,17 +126,18 @@ def summarise_chunks(state: StudyState) -> StudyState:
     messages = [
         SystemMessage(
             content=(
-                "You are a concise financial education assistant. "
-                "Summarise the provided chapter content clearly and accurately. "
-                f"Your summary must be approximately {target_chars} characters long "
-                "(not words — characters). Do not exceed twice that length."
+                "You are a descriptive financial education assistant. "
+                "Summarise the provided chapter content in a detailed, in-depth manner. "
+                "Cover key concepts, explanations, and important details thoroughly. "
+                f"Your summary must be between {min_chars} and {max_chars} characters long "
+                "(not words — characters). Do not be concise at the expense of depth."
             )
         ),
         HumanMessage(content=combined_text),
     ]
 
     print(
-        f"[Node 2] Generating summary (target {target_chars} chars) "
+        f"[Node 2] Generating detailed summary ({min_chars}–{max_chars} chars) "
         f"for Module {state['current_module']}, Chapter {state['current_chapter']} …"
     )
 
@@ -144,7 +154,102 @@ def summarise_chunks(state: StudyState) -> StudyState:
 
 
 # ---------------------------------------------------------------------------
-# Node 3 — Update progress
+# Node 3 — Validate summary
+# ---------------------------------------------------------------------------
+
+
+def validate_summary_node(state: StudyState) -> StudyState:
+    """
+    Check whether the generated summary is descriptive, in-depth, and
+    satisfies the length constraint (between half and three-quarters of
+    the original chapter).
+
+    - If it passes         → set ``summary_validation_passed = True``.
+    - If it fails and
+      ``summary_retry_count < 3`` → increment retry count, set
+      ``summary_validation_passed = False`` so the edge routes back to
+      ``summarise_chunks``.
+    - If it fails and
+      ``summary_retry_count >= 3`` → accept what we have and let the
+      edge route to ``update_progress``.
+    """
+    summary = state.get("summary", "")
+    total_chars = state.get("total_chars", 0)
+    retry_count = state.get("summary_retry_count", 0)
+
+    if not summary:
+        print("[Validate Summary] Empty summary — failing.")
+        retry_count += 1
+        return {
+            **state,
+            "summary_retry_count": retry_count,
+            "summary_validation_passed": False,
+        }
+
+    min_chars = total_chars // 2
+    max_chars = total_chars * 3 // 4
+    actual_chars = len(summary)
+
+    load_dotenv()
+    llm = init_chat_model(settings.llm_model_name, temperature=0.0)
+
+    check = llm.invoke([
+        SystemMessage(
+            content=(
+                "You are a strict quality inspector for financial education content. "
+                "Answer only with a single word: 'PASS' or 'FAIL'. "
+                "Does the following summary meet ALL of these criteria?\n"
+                "1. It is descriptive, in-depth, and covers key concepts thoroughly.\n"
+                "2. It reads like educational material, not just bullet points.\n"
+                "3. It demonstrates understanding of the topic, not just surface-level facts.\n"
+                "Answer PASS only if ALL criteria are met."
+            )
+        ),
+        HumanMessage(content=summary),
+    ])
+
+    quality_ok = "PASS" in check.content.strip().upper()
+
+    if quality_ok and min_chars <= actual_chars <= max_chars:
+        print(
+            f"[Validate Summary] PASS — {actual_chars} chars "
+            f"(range {min_chars}–{max_chars})."
+        )
+        return {
+            **state,
+            "summary_validation_passed": True,
+        }
+
+    # ── report what went wrong ──────────────────────────────────────────
+    reasons = []
+    if not quality_ok:
+        reasons.append("not descriptive enough")
+    if actual_chars < min_chars:
+        reasons.append(f"too short ({actual_chars} < {min_chars} chars)")
+    elif actual_chars > max_chars:
+        reasons.append(f"too long ({actual_chars} > {max_chars} chars)")
+
+    print(f"[Validate Summary] FAIL — {', '.join(reasons)}.")
+
+    if retry_count >= 3:
+        print(f"[Validate Summary] Max retries ({retry_count}) reached — accepting summary.")
+        return {
+            **state,
+            "summary_validation_passed": False,
+        }
+
+    new_retry_count = retry_count + 1
+    print(f"[Validate Summary] Retry {new_retry_count}/3 …")
+
+    return {
+        **state,
+        "summary_retry_count": new_retry_count,
+        "summary_validation_passed": False,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Node 4 — Update progress
 # ---------------------------------------------------------------------------
 
 

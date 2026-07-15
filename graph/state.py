@@ -49,3 +49,7 @@ class StudyState(TypedDict):
     validation_passed: bool
     rag_retry_count: int
     rag_search_query: str
+
+    # Study summary validation
+    summary_retry_count: int
+    summary_validation_passed: bool

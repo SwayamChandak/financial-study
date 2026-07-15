@@ -2,7 +2,11 @@
 Graph builder — assembles the daily study pipeline as a compiled LangGraph.
 
 Pipeline (study):
-  START → filter_by_memory → summarise_chunks → update_progress → END
+  START → filter_by_memory → summarise_chunks
+       → validate_summary
+       → (valid → update_progress → END
+          | retry → summarise_chunks
+          | max_retries → update_progress → END)
 
 Pipeline (chat):
   START → guardrail_node
@@ -29,7 +33,12 @@ from graph.chat_nodes import (
     rag_lookup_node,
     validate_response_node,
 )
-from graph.nodes import filter_by_memory, summarise_chunks, update_progress
+from graph.nodes import (
+    filter_by_memory,
+    summarise_chunks,
+    update_progress,
+    validate_summary_node,
+)
 from graph.state import StudyState
 
 
@@ -53,9 +62,28 @@ def _decide_after_validation(state: StudyState) -> str:
     return "retry"
 
 
+def _decide_after_summary_validation(state: StudyState) -> str:
+    """
+    Route after the summary validation node.
+
+    - ``"valid"``        → the summary passed validation → update_progress
+    - ``"max_retries"``  → retry count >= 3 → update_progress (accept what we have)
+    - ``"retry"``        → failed validation, retries remain → summarise_chunks
+    """
+    if state.get("summary_validation_passed", False):
+        return "valid"
+    if state.get("summary_retry_count", 0) >= 3:
+        return "max_retries"
+    return "retry"
+
+
 def build_study_graph() -> StateGraph:
     """
     Construct and compile the daily study workflow.
+
+    The graph includes a validation loop: after summarising, the summary is
+    checked for descriptiveness and length constraints. If it fails (up to 3
+    retries), the graph loops back to the summarisation node.
 
     Returns a compiled LangGraph that can be invoked with an empty dict
     (all initial state is read from Redis / Qdrant inside the nodes).
@@ -64,11 +92,21 @@ def build_study_graph() -> StateGraph:
 
     builder.add_node("filter_by_memory", filter_by_memory)
     builder.add_node("summarise_chunks", summarise_chunks)
+    builder.add_node("validate_summary", validate_summary_node)
     builder.add_node("update_progress", update_progress)
 
     builder.add_edge(START, "filter_by_memory")
     builder.add_edge("filter_by_memory", "summarise_chunks")
-    builder.add_edge("summarise_chunks", "update_progress")
+    builder.add_edge("summarise_chunks", "validate_summary")
+    builder.add_conditional_edges(
+        "validate_summary",
+        _decide_after_summary_validation,
+        {
+            "valid": "update_progress",
+            "retry": "summarise_chunks",
+            "max_retries": "update_progress",
+        },
+    )
     builder.add_edge("update_progress", END)
 
     return builder.compile()
