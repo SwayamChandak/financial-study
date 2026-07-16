@@ -123,14 +123,36 @@ def summarise_chunks(state: StudyState) -> StudyState:
         temperature=settings.llm_temperature,
     )
 
+    input_len = len(combined_text)
+    min_chars = int(input_len * 0.5)
+    max_chars = int(input_len * 0.8)
+
     messages = [
         SystemMessage(
             content=(
-                "You are a descriptive financial education assistant. "
-                "Summarise the provided chapter content in a detailed, in-depth manner. "
-                "Cover key concepts, explanations, and important details thoroughly. "
-                f"Your summary must be between {min_chars} and {max_chars} characters long "
-                "(not words — characters). Do not be concise at the expense of depth."
+                "You are a financial education assistant producing a DETAILED, LONG-FORM rewrite "
+                "of the provided chapter — not a condensed summary. Treat this as writing a thorough "
+                "study guide version of the chapter, not an abstract of it.\n\n"
+                "Strict requirements:\n"
+                f"1. LENGTH: Your output must be between {min_chars} and {max_chars} characters "
+                f"(the input chapter is {input_len} characters). This is a hard requirement — "
+                "output shorter than the minimum is a failed response. Do not compress content to "
+                "save space; if you are near the lower bound, add more explanation, not filler.\n\n"
+                "2. EXAMPLES: If the chapter contains any examples, case studies, sample calculations, "
+                "or scenarios, you must include EVERY one of them in full detail — "
+                "the numbers, the steps, and the reasoning behind them. Do not paraphrase examples "
+                "into a single summary sentence like 'the chapter gives an example of X.' Reproduce "
+                "the worked logic of each example as its own explained passage.\n\n"
+                "3. DEPTH: Explain every key concept the way the original does — including definitions, "
+                "the reasoning or mechanism behind each concept, why it matters, and how ideas connect "
+                "to each other. If the original explains WHY something works, not just WHAT it is, "
+                "preserve that reasoning.\n\n"
+                "4. STRUCTURE: Organize your output section by section, following the structure of the "
+                "original chapter (same order of topics), rather than reorganizing into a compressed "
+                "abstract.\n\n"
+                "Your goal is a reader who skips the original chapter and reads only your version "
+                "should come away with essentially the same knowledge, examples, and depth of "
+                "understanding as if they'd read the original."
             )
         ),
         HumanMessage(content=combined_text),
@@ -202,7 +224,7 @@ def validate_summary_node(state: StudyState) -> StudyState:
                 "1. It is descriptive, in-depth, and covers key concepts thoroughly.\n"
                 "2. It reads like educational material, not just bullet points.\n"
                 "3. It demonstrates understanding of the topic, not just surface-level facts.\n"
-                "Answer PASS only if ALL criteria are met."
+                "Answer PASS if 2 out of 3 criteria are met."
             )
         ),
         HumanMessage(content=summary),

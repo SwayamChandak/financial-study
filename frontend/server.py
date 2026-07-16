@@ -37,6 +37,57 @@ async def chat(req: ChatRequest) -> ChatResponse:
     return ChatResponse(response=result.get("chatbot_response", ""))
 
 
+class TeachResponse(BaseModel):
+    summary: str
+    module: int
+    chapter: int
+    done: bool
+
+
+def _run_study_graph() -> dict:
+    """Run the full study graph and return the final state."""
+    from graph.builder import build_study_graph
+
+    graph = build_study_graph()
+    return graph.invoke({})
+
+
+@app.post("/api/teach/start")
+async def teach_start() -> TeachResponse:
+    from memory.progress import set_current_chapter, set_current_module
+
+    set_current_module(1)
+    set_current_chapter(1)
+
+    result = _run_study_graph()
+    summary = result.get("summary", "")
+
+    return TeachResponse(
+        summary=summary,
+        module=1,
+        chapter=1,
+        done=not summary,
+    )
+
+
+@app.post("/api/teach/next")
+async def teach_next() -> TeachResponse:
+    from memory.progress import get_current_chapter, get_current_module
+
+    module = get_current_module()
+    chapter = get_current_chapter()
+
+    result = _run_study_graph()
+    summary = result.get("summary", "")
+
+    return TeachResponse(
+        summary=summary or "No more chapters available — all study material has been covered.",
+        module=module,
+        chapter=chapter,
+        done=not result.get("summary", ""),
+    )
+
+
 app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")
 
 

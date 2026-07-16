@@ -50,6 +50,14 @@ cp .env.example .env
 
 ## Running
 
+### Ingestion pipeline
+
+```bash
+python main.py ingest --source-dir data
+```
+
+This loads PDF files from the given directory, chunks them, generates embeddings, and stores them in Qdrant.
+
 ### CLI chatbot
 
 ```bash
@@ -69,7 +77,7 @@ cd ../..
 Start the server:
 
 ```bash
-python -m frontend.server
+uv run python -m frontend.server
 ```
 
 Then open http://127.0.0.1:8000 in your browser.

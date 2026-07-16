@@ -12,6 +12,9 @@ function App() {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [teachLoading, setTeachLoading] = useState(false)
+  const [currentPos, setCurrentPos] = useState(null)
+  const [teachDone, setTeachDone] = useState(false)
   const endRef = useRef(null)
 
   useEffect(() => {
@@ -47,6 +50,42 @@ function App() {
     }
   }
 
+  async function handleTeach(action) {
+    if (teachLoading) return
+    setTeachLoading(true)
+
+    try {
+      const endpoint = action === 'start' ? '/api/teach/start' : '/api/teach/next'
+      const res = await fetch(endpoint, { method: 'POST' })
+
+      if (!res.ok) {
+        const errText = await res.text()
+        throw new Error(errText || `Request failed (${res.status})`)
+      }
+
+      const data = await res.json()
+
+      if (action === 'start') {
+        setMessages([{
+          text: `**Teaching Mode — Module ${data.module}, Chapter ${data.chapter}**\n\n${data.summary}`,
+          role: 'bot',
+        }])
+      } else {
+        setMessages(prev => [...prev, {
+          text: `**Module ${data.module}, Chapter ${data.chapter}**\n\n${data.summary}`,
+          role: 'bot',
+        }])
+      }
+
+      setCurrentPos({ module: data.module, chapter: data.chapter })
+      setTeachDone(data.done)
+    } catch (err) {
+      setMessages(prev => [...prev, { text: 'Error: ' + err.message, role: 'error' }])
+    } finally {
+      setTeachLoading(false)
+    }
+  }
+
   function handleKeyDown(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -62,10 +101,33 @@ function App() {
         <span className="subtitle">— Chatbot</span>
       </header>
 
+      <div id="teach-bar">
+        <button
+          className="teach-btn restart"
+          onClick={() => handleTeach('start')}
+          disabled={teachLoading}
+        >
+          Restart Teaching
+        </button>
+        <button
+          className="teach-btn next"
+          onClick={() => handleTeach('next')}
+          disabled={teachLoading || teachDone}
+        >
+          {teachLoading ? 'Loading...' : 'Next Chapter'}
+        </button>
+        {currentPos && (
+          <span id="teach-pos">
+            Module {currentPos.module}, Chapter {currentPos.chapter}
+            {teachDone && ' — All done!'}
+          </span>
+        )}
+      </div>
+
       <div id="chat-container">
         {messages.length === 0 && (
           <div className="empty-state">
-            Ask a question about financial markets to get started.
+            Ask a question or use the teaching buttons above to read chapter summaries.
           </div>
         )}
         {messages.map((msg, i) => (

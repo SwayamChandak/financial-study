@@ -48,6 +48,48 @@ header h1 {
   flex-shrink: 0;
 }
 
+#teach-bar {
+  background: #111;
+  border-bottom: 1px solid #222;
+  padding: 10px 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.teach-btn {
+  background: #1a1a1a;
+  color: #e0e0e0;
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 6px 16px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.teach-btn:hover:not(:disabled) {
+  background: #2a2a2a;
+  border-color: #f5c518;
+}
+
+.teach-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.teach-btn.restart {
+  border-color: #f5c518;
+  color: #f5c518;
+}
+
+#teach-pos {
+  font-size: 13px;
+  color: #666;
+  margin-left: auto;
+}
+
 #chat-container {
   flex: 1;
   overflow-y: auto;
