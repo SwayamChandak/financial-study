@@ -1,12 +1,15 @@
 """
-Document chunker — strips the 'Comments' section then splits into chunks.
+Document chunker — strips preamble, strips the 'Comments' section,
+then splits into chunks.
 
 Processing per PDF (pages grouped by source_path):
 
   1. Iterate pages in reading order.
-  2. On each page, search for a 'Comments' heading using regex.
-  3. If found, keep only the text *before* the heading; mark the
-     current PDF as finished — all subsequent pages are discarded.
+  2. For each PDF, find the chapter heading line
+     "{chapterNo}. {ChapterName}" and discard everything before it
+     (table-of-contents / navigation preamble).
+  3. On each subsequent page, search for a 'Comments' heading using
+     regex; keep only the text *before* it.
   4. Collect the surviving page texts and split them with
      RecursiveCharacterTextSplitter, preserving all source metadata.
 
@@ -43,14 +46,55 @@ def _truncate_at_comments(text: str) -> tuple[str, bool]:
     return text, False
 
 
+def _strip_preamble(pages: list[Document]) -> list[Document]:
+    """
+    For a single PDF's pages, find the heading line
+
+      {chapterNo}. {ChapterName}
+
+    and discard everything before it.  The pattern is *not* mistaken for
+    table-of-contents lines like "{chapterNo}. {chapterNo} {ChapterName}".
+
+    Updates *chapter_title* metadata with the extracted chapter name.
+    """
+    if not pages:
+        return pages
+
+    chapter_no = pages[0].metadata.get("chapter_no", 0)
+    if not chapter_no:
+        return pages
+
+    # Matches e.g. "1. Background" but NOT "1. 1 Background".
+    heading_re = re.compile(
+        rf"^({chapter_no})\.\s+(?!\1\b)(.+)$", re.MULTILINE,
+    )
+
+    result: list[Document] = []
+    heading_found = False
+
+    for doc in pages:
+        if heading_found:
+            result.append(doc)
+            continue
+
+        match = heading_re.search(doc.page_content)
+        if match:
+            heading_found = True
+            doc.metadata["chapter_title"] = match.group(2).strip()
+            trimmed = doc.page_content[match.start() :]
+            if trimmed.strip():
+                result.append(Document(page_content=trimmed, metadata=doc.metadata))
+
+    return result
+
+
 def chunk_documents(
     documents: list[Document],
     chunk_size: int = 500,
     chunk_overlap: int = 75,
 ) -> list[Document]:
     """
-    Truncate each PDF at its first 'Comments' heading then split the
-    remaining content into overlapping text chunks.
+    Strip preamble & Comments section, then split into overlapping chunks.
 
     Args:
       documents:     Flat list of page-level Documents from the loader.
@@ -74,8 +118,14 @@ def chunk_documents(
 
     filtered: list[Document] = []
     for _src, page_iter in groupby(sorted_docs, key=lambda d: d.metadata.get("source_path", "")):
+        pages = list(page_iter)
+
+        # Step 1 — discard preamble before "{chapterNo}. {ChapterName}"
+        pages = _strip_preamble(pages)
+
+        # Step 2 — truncate at the "Comments" heading
         comments_encountered = False
-        for doc in page_iter:
+        for doc in pages:
             if comments_encountered:
                 continue
 
