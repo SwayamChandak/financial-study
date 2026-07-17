@@ -33,8 +33,12 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # LLM — Ollama
-    llm_model_name: str = Field(default="ollama:llama3.2")
+    # LLM — Chatbot (Ollama)
+    llm_chat_model_name: str = Field(default="ollama:llama3.2")
+
+    # LLM — Study / summary (Gemini)
+    llm_study_model_name: str = Field(default="google_genai:gemini-2.0-flash")
+
     llm_temperature: float = Field(default=0.2)
     llm_max_tokens: int = Field(default=2048)
     ollama_base_url: str = Field(default="http://localhost:11434")

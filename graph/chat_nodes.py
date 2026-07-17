@@ -110,7 +110,10 @@ def rag_lookup_node(state: StudyState) -> StudyState:
          "not applicable, i wasn't made for that".
       2. Search Qdrant for chunks with ``seen == True``.
       3. If nothing is found → return "can't find answer, sorry bro".
-      4. Otherwise, feed the retrieved context to the LLM and return
+      4. **Hard evidence gate** — LLM checks whether the retrieved
+         context contains direct evidence for the question.  If not,
+         return the fallback immediately without generating an answer.
+      5. Otherwise, feed the retrieved context to the LLM and return
          the answer.
 
     The user message and the AI response are both appended to
@@ -119,10 +122,10 @@ def rag_lookup_node(state: StudyState) -> StudyState:
     user_input = state.get("user_input", "").strip()
 
     if not user_input:
-        return {**state, "chatbot_response": "Please provide a question."}
+        return {**state, "chatbot_response": "Please provide a question.", "evidence_found": False}
 
     load_dotenv()
-    llm = init_chat_model(settings.llm_model_name, temperature=0.0)
+    llm = init_chat_model(settings.llm_chat_model_name, temperature=0.0)
 
     # ── Step 1: classify topic ──────────────────────────────────────────
     classification = llm.invoke([
@@ -142,6 +145,7 @@ def rag_lookup_node(state: StudyState) -> StudyState:
         return {
             **state,
             "chatbot_response": "not applicable, i wasn't made for that",
+            "evidence_found": False,
         }
 
     # ── Step 2: search seen-only chunks ─────────────────────────────────
@@ -153,9 +157,35 @@ def rag_lookup_node(state: StudyState) -> StudyState:
         return {
             **state,
             "chatbot_response": "can't find answer, sorry bro",
+            "evidence_found": False,
         }
 
-    # ── Step 3: extract source info from retrieved chunks ──────────────
+    # ── Step 3: hard evidence gate ──────────────────────────────────────
+    context = "\n\n".join(
+        doc.page_content for doc in results
+    )
+
+    evidence_check = llm.invoke([
+        SystemMessage(
+            content=(
+                "You are a strict evidence detector. Answer only with a single word: "
+                "'YES' or 'NO'. Does the provided context contain specific facts, data, "
+                "or information that directly answers the user's question? Answer NO if "
+                "the context only tangentially relates or contains no direct evidence."
+            )
+        ),
+        HumanMessage(content=f"Context:\n{context}\n\nQuestion: {user_input}"),
+    ])
+
+    if "NO" in evidence_check.content.strip().upper():
+        print("[RAG] Evidence gate — no direct evidence in retrieved chunks.")
+        return {
+            **state,
+            "chatbot_response": "can't find answer, sorry bro",
+            "evidence_found": False,
+        }
+
+    # ── Step 4: extract source info from retrieved chunks ──────────────
     sources: set[tuple[int, int]] = set()
     for doc in results:
         mod = doc.metadata.get("module_no")
@@ -163,11 +193,7 @@ def rag_lookup_node(state: StudyState) -> StudyState:
         if mod is not None and ch is not None:
             sources.add((int(mod), int(ch)))
 
-    # ── Step 4: answer with context ─────────────────────────────────────
-    context = "\n\n".join(
-        doc.page_content for doc in results
-    )
-
+    # ── Step 5: answer with context ─────────────────────────────────────
     response = llm.invoke([
         SystemMessage(
             content=(
@@ -182,7 +208,7 @@ def rag_lookup_node(state: StudyState) -> StudyState:
 
     answer = response.content.strip()
 
-    # ── Step 5: append source citation ──────────────────────────────────
+    # ── Step 6: append source citation ──────────────────────────────────
     if sources:
         source_text = ", ".join(
             sorted(f"Module {m}, Chapter {c}" for m, c in sources)
@@ -201,6 +227,7 @@ def rag_lookup_node(state: StudyState) -> StudyState:
         "messages": messages,
         "chatbot_response": answer,
         "rag_search_query": "",
+        "evidence_found": True,
     }
 
 
@@ -220,7 +247,7 @@ def validate_response_node(state: StudyState) -> StudyState:
     retry_count = state.get("rag_retry_count", 0)
 
     load_dotenv()
-    llm = init_chat_model(settings.llm_model_name, temperature=0.0)
+    llm = init_chat_model(settings.llm_chat_model_name, temperature=0.0)
 
     # ── check if answer is descriptive enough ──────────────────────────
     check = llm.invoke([

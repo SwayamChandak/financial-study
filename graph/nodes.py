@@ -119,7 +119,7 @@ def summarise_chunks(state: StudyState) -> StudyState:
 
     load_dotenv()
     llm = init_chat_model(
-        settings.llm_model_name,
+        settings.llm_study_model_name,
         temperature=settings.llm_temperature,
     )
 
@@ -213,7 +213,7 @@ def validate_summary_node(state: StudyState) -> StudyState:
     actual_chars = len(summary)
 
     load_dotenv()
-    llm = init_chat_model(settings.llm_model_name, temperature=0.0)
+    llm = init_chat_model(settings.llm_study_model_name, temperature=0.0)
 
     check = llm.invoke([
         SystemMessage(

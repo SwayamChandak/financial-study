@@ -11,7 +11,7 @@ Pipeline (study):
 Pipeline (chat):
   START → guardrail_node
        → (flagged → END | clean → rag_lookup_node)
-       → validate_response_node
+       → (evidence_missing → END | has_evidence → validate_response_node)
        → (valid → END | retry → rag_lookup_node | max_retries → END)
 
 Usage:
@@ -45,6 +45,11 @@ from graph.state import StudyState
 def _decide_after_guardrail(state: StudyState) -> str:
     """Return ``"flagged"`` when the guardrail fired, else ``"clean"``."""
     return "flagged" if state.get("guardrail_flagged") else "clean"
+
+
+def _decide_after_rag_lookup(state: StudyState) -> str:
+    """Return ``"evidence_missing"`` when the evidence gate failed, else ``"has_evidence"``."""
+    return "evidence_missing" if not state.get("evidence_found") else "has_evidence"
 
 
 def _decide_after_validation(state: StudyState) -> str:
@@ -133,7 +138,11 @@ def build_chat_graph() -> StateGraph:
         _decide_after_guardrail,
         {"flagged": END, "clean": "rag_lookup_node"},
     )
-    builder.add_edge("rag_lookup_node", "validate_response_node")
+    builder.add_conditional_edges(
+        "rag_lookup_node",
+        _decide_after_rag_lookup,
+        {"evidence_missing": END, "has_evidence": "validate_response_node"},
+    )
     builder.add_conditional_edges(
         "validate_response_node",
         _decide_after_validation,
