@@ -193,16 +193,19 @@ def rag_lookup_node(state: StudyState) -> StudyState:
         if mod is not None and ch is not None:
             sources.add((int(mod), int(ch)))
 
-    # ── Step 5: answer with context ─────────────────────────────────────
+    # ── Step 5: build system prompt with optional memory context ──────
+    memory_context = state.get("memory_context", "")
+    system_parts = [
+        "You are a helpful financial assistant. Answer the user's "
+        "question based on the provided context. If the context "
+        "does not contain enough information to answer, say "
+        "'can't find answer, sorry bro'. Be descriptive and in-depth."
+    ]
+    if memory_context:
+        system_parts.append(f"\n\nConversation history:\n{memory_context}")
+
     response = llm.invoke([
-        SystemMessage(
-            content=(
-                "You are a helpful financial assistant. Answer the user's "
-                "question based on the provided context. If the context "
-                "does not contain enough information to answer, say "
-                "'can't find answer, sorry bro'. Be descriptive and in-depth."
-            )
-        ),
+        SystemMessage(content="\n".join(system_parts)),
         HumanMessage(content=f"Context:\n{context}\n\nQuestion: {user_input}"),
     ])
 

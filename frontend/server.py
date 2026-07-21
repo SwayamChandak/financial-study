@@ -31,10 +31,19 @@ class ChatResponse(BaseModel):
 @app.post("/api/chat")
 async def chat(req: ChatRequest) -> ChatResponse:
     from graph.builder import build_chat_graph
+    from memory import memory_service
+
+    memory_context = memory_service.format_memory_for_prompt(limit=10)
 
     graph = build_chat_graph()
-    result = graph.invoke({"user_input": req.query})
-    return ChatResponse(response=result.get("chatbot_response", ""))
+    result = graph.invoke({
+        "user_input": req.query,
+        "memory_context": memory_context,
+    })
+
+    response_text = result.get("chatbot_response", "")
+    memory_service.add_to_memory(req.query, response_text)
+    return ChatResponse(response=response_text)
 
 
 class TeachResponse(BaseModel):

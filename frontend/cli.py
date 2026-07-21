@@ -51,6 +51,7 @@ def main() -> None:
     load_dotenv()
 
     from graph.builder import build_chat_graph
+    from memory import memory_service
 
     graph = build_chat_graph()
 
@@ -70,8 +71,13 @@ def main() -> None:
             continue
 
         try:
-            result = graph.invoke({"user_input": stripped})
+            memory_context = memory_service.format_memory_for_prompt(limit=10)
+            result = graph.invoke({
+                "user_input": stripped,
+                "memory_context": memory_context,
+            })
             response = result.get("chatbot_response", "")
+            memory_service.add_to_memory(stripped, response)
             print_bot(response)
         except Exception as exc:
             print_error(f"Error: {exc}")

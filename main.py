@@ -29,10 +29,19 @@ def run_study(args: argparse.Namespace) -> None:  # noqa: ARG001
 
 def run_chat(args: argparse.Namespace) -> None:
     from graph.builder import build_chat_graph
+    from memory import memory_service
+
+    memory_context = memory_service.format_memory_for_prompt(limit=10)
 
     graph = build_chat_graph()
-    result = graph.invoke({"user_input": args.query})
-    print(result.get("chatbot_response", ""))
+    result = graph.invoke({
+        "user_input": args.query,
+        "memory_context": memory_context,
+    })
+
+    response = result.get("chatbot_response", "")
+    memory_service.add_to_memory(args.query, response)
+    print(response)
 
 
 def main() -> None:
