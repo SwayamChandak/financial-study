@@ -78,5 +78,9 @@ class Settings(BaseSettings):
     # Redis — used for persistent progress memory (last_module_no, last_chapter_no)
     redis_url: str = Field(default="redis://localhost:6379")
 
+    # Quiz
+    quiz_default_count: int = Field(default=10)
+    quiz_cache_ttl: int = Field(default=3600)
+
 
 settings = Settings()

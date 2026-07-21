@@ -46,6 +46,61 @@ async def chat(req: ChatRequest) -> ChatResponse:
     return ChatResponse(response=response_text)
 
 
+class QuizGenerateRequest(BaseModel):
+    count: int = 10
+
+
+class QuizGenerateResponse(BaseModel):
+    quiz_id: str
+    created_at: str
+    total_questions: int
+    questions: list[dict]
+
+
+class QuizSubmitRequest(BaseModel):
+    quiz_id: str
+    answers: dict[str, str]
+
+
+class QuizSubmitResponse(BaseModel):
+    quiz_id: str
+    score: str
+    percentage: int
+    results: list[dict]
+
+
+@app.post("/api/quiz/generate")
+async def quiz_generate(req: QuizGenerateRequest) -> QuizGenerateResponse:
+    from quiz.service import quiz_service
+
+    try:
+        result = await quiz_service.generate_quiz(count=req.count)
+        return QuizGenerateResponse(**result)
+    except Exception as exc:
+        from fastapi.responses import JSONResponse
+
+        return JSONResponse(
+            status_code=400,
+            content={"error": str(exc)},
+        )
+
+
+@app.post("/api/quiz/submit")
+async def quiz_submit(req: QuizSubmitRequest) -> QuizSubmitResponse:
+    from quiz.service import quiz_service
+
+    try:
+        result = await quiz_service.submit_quiz(req.quiz_id, req.answers)
+        return QuizSubmitResponse(**result)
+    except Exception as exc:
+        from fastapi.responses import JSONResponse
+
+        return JSONResponse(
+            status_code=404,
+            content={"error": str(exc)},
+        )
+
+
 class TeachResponse(BaseModel):
     summary: str
     module: int
