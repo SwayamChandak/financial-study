@@ -1,23 +1,5 @@
 """
-Graph state — shared data passed between nodes in the study pipeline.
-
-Study fields:
-  current_module   — module number read from Redis at the start of each run
-  current_chapter  — chapter number read from Redis at the start of each run
-  chunks           — all Document chunks retrieved for the current chapter
-  point_ids        — Qdrant point IDs matching each chunk (same order as chunks)
-  total_chars      — sum of text_length across all retrieved chunks
-  summary          — LLM-generated summary of the chapter content
-
-Chatbot fields:
-  want_new_information  — flag indicating the user wants fresh content (default False)
-  already_asked         — flag indicating the user has already asked a question (default False)
-  session_id            — unique identifier for the current chat session
-  messages              — conversation history as LangChain message objects
-  user_input            — the most recent user query / input
-  validation_passed     — set to True by validate node when the RAG answer passes quality check
-  rag_retry_count       — number of times RAG has been retried (0..3, reset per query)
-  rag_search_query      — improved search query for retry (empty = use original user_input)
+Graph state — shared data passed between nodes in the study and chatbot pipelines.
 """
 
 from __future__ import annotations
@@ -39,9 +21,6 @@ class StudyState(TypedDict):
     summary: str
 
     # Chatbot
-    want_new_information: bool
-    already_asked: bool
-    session_id: str
     messages: list[AnyMessage]
     user_input: str
     guardrail_flagged: bool

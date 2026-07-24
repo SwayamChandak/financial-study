@@ -46,22 +46,6 @@ def set_current_module(module_no: int) -> None:
     _client().set(_KEY_MODULE, module_no)
 
 
-def advance_module() -> int:
-    """Increment the current module by 1 and return the new value.
-
-    Initialises to 1 before incrementing if no value has been stored yet,
-    so the first call returns 2. Use ``set_current_module(1)`` to reset.
-    """
-    client = _client()
-    client.setnx(_KEY_MODULE, 1)
-    return int(client.incr(_KEY_MODULE))
-
-
-# ---------------------------------------------------------------------------
-# Chapter
-# ---------------------------------------------------------------------------
-
-
 def get_current_chapter() -> int:
     """Return the current chapter number. Defaults to 1 if never set."""
     value = _client().get(_KEY_CHAPTER)
@@ -71,17 +55,6 @@ def get_current_chapter() -> int:
 def set_current_chapter(chapter_no: int) -> None:
     """Persist *chapter_no* as the current chapter (no expiry)."""
     _client().set(_KEY_CHAPTER, chapter_no)
-
-
-def advance_chapter() -> int:
-    """Increment the current chapter by 1 and return the new value.
-
-    Initialises to 1 before incrementing if no value has been stored yet,
-    so the first call returns 2. Use ``set_current_chapter(1)`` to reset.
-    """
-    client = _client()
-    client.setnx(_KEY_CHAPTER, 1)
-    return int(client.incr(_KEY_CHAPTER))
 
 
 # ---------------------------------------------------------------------------

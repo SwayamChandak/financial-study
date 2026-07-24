@@ -9,9 +9,10 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import sys
 
 from dotenv import load_dotenv
+
+from config.settings import setup_langsmith
 
 
 def run_ingestion(args: argparse.Namespace) -> None:
@@ -20,15 +21,15 @@ def run_ingestion(args: argparse.Namespace) -> None:
     run_pipeline(args.source_dir)
 
 
-def run_study(args: argparse.Namespace) -> None:  # noqa: ARG001
-    from graph.builder import build_study_graph
+def run_study(args: argparse.Namespace) -> None:
+    from graph.graph_builder import build_study_graph
 
     graph = build_study_graph()
     graph.invoke({})
 
 
 def run_chat(args: argparse.Namespace) -> None:
-    from graph.builder import build_chat_graph
+    from graph.graph_builder import build_chat_graph
     from memory import memory_service
 
     memory_context = memory_service.format_memory_for_prompt(limit=10)
@@ -46,6 +47,7 @@ def run_chat(args: argparse.Namespace) -> None:
 
 def main() -> None:
     load_dotenv()
+    setup_langsmith()
 
     parser = argparse.ArgumentParser(
         description="Financial studying agent — ingestion & AI workflow"

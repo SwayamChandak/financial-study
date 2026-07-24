@@ -11,7 +11,6 @@ from __future__ import annotations
 from typing import Any
 
 from langchain_core.documents import Document
-from langchain_core.retrievers import BaseRetriever
 from langchain_qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
@@ -61,47 +60,6 @@ def upsert_chunks(chunks: list[Document]) -> None:
     stored alongside each vector and is available for filtered retrieval.
     """
     get_vector_store().add_documents(chunks)
-
-
-def get_retriever(
-    module_number: int | None = None,
-    chapter_number: int | None = None,
-    top_k: int | None = None,
-) -> BaseRetriever:
-    """
-    Return a LangChain retriever backed by Qdrant.
-
-    Args:
-      module_number:  If provided, restricts results to this module.
-      chapter_number: If provided, restricts results to this chapter.
-      top_k:          Number of passages to return (default: settings.rag_top_k).
-
-    Returns:
-      A retriever usable directly in LangChain / LangGraph chains.
-    """
-    k = top_k if top_k is not None else settings.rag_top_k
-
-    conditions: list[FieldCondition] = []
-    if module_number is not None:
-        conditions.append(
-            FieldCondition(
-                key="metadata.module_no",
-                match=MatchValue(value=module_number),
-            )
-        )
-    if chapter_number is not None:
-        conditions.append(
-            FieldCondition(
-                key="metadata.chapter_no",
-                match=MatchValue(value=chapter_number),
-            )
-        )
-
-    search_kwargs: dict = {"k": k}
-    if conditions:
-        search_kwargs["filter"] = Filter(must=conditions)
-
-    return get_vector_store().as_retriever(search_kwargs=search_kwargs)
 
 
 def fetch_all_chunks(

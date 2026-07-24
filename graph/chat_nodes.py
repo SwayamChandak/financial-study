@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import re
 
-from dotenv import load_dotenv
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
@@ -124,7 +123,6 @@ def rag_lookup_node(state: StudyState) -> StudyState:
     if not user_input:
         return {**state, "chatbot_response": "Please provide a question.", "evidence_found": False}
 
-    load_dotenv()
     llm = init_chat_model(settings.llm_chat_model_name, temperature=0.0)
 
     # ── Step 1: classify topic ──────────────────────────────────────────
@@ -196,10 +194,10 @@ def rag_lookup_node(state: StudyState) -> StudyState:
     # ── Step 5: build system prompt with optional memory context ──────
     memory_context = state.get("memory_context", "")
     system_parts = [
-        "You are a helpful financial assistant. Answer the user's "
+        ("You are a helpful financial assistant. Answer the user's "
         "question based on the provided context. If the context "
         "does not contain enough information to answer, say "
-        "'can't find answer, sorry bro'. Be descriptive and in-depth."
+        "'can't find answer, sorry bro'. Be descriptive and in-depth.")
     ]
     if memory_context:
         system_parts.append(f"\n\nConversation history:\n{memory_context}")
@@ -249,7 +247,6 @@ def validate_response_node(state: StudyState) -> StudyState:
     user_input = state.get("user_input", "")
     retry_count = state.get("rag_retry_count", 0)
 
-    load_dotenv()
     llm = init_chat_model(settings.llm_chat_model_name, temperature=0.0)
 
     # ── check if answer is descriptive enough ──────────────────────────

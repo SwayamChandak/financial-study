@@ -15,13 +15,7 @@ Pipeline (chat):
        → (valid → END | retry → rag_lookup_node | max_retries → END)
 
 Usage:
-    from graph.builder import build_study_graph, build_chat_graph
-
-    study_graph = build_study_graph()
-    study_graph.invoke({})
-
-    chat_graph = build_chat_graph()
-    chat_graph.invoke({"user_input": "What is Nifty?"})
+    from graph.graph_builder import build_study_graph, build_chat_graph
 """
 
 from __future__ import annotations
@@ -33,13 +27,13 @@ from graph.chat_nodes import (
     rag_lookup_node,
     validate_response_node,
 )
-from graph.nodes import (
+from graph.state import StudyState
+from graph.study_nodes import (
     filter_by_memory,
     summarise_chunks,
     update_progress,
     validate_summary_node,
 )
-from graph.state import StudyState
 
 
 def _decide_after_guardrail(state: StudyState) -> str:

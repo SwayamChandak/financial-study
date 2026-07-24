@@ -26,7 +26,6 @@ from itertools import groupby
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-
 # Matches lines like "Comments", "1,279  comments", "100 Comment" —
 # an optional leading number (with commas) followed by the word comments.
 _COMMENTS_RE = re.compile(r"(?m)^\s*(?:\d[\d,]*\s+)?[Cc]omments?\s*$")

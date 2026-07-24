@@ -21,7 +21,6 @@ Node 4  update_progress        marks all retrieved chunks as seen in Qdrant,
 
 from __future__ import annotations
 
-from dotenv import load_dotenv
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import HumanMessage, SystemMessage
 
@@ -36,7 +35,6 @@ from memory.progress import (
     set_current_chapter,
     set_current_module,
 )
-
 
 # ---------------------------------------------------------------------------
 # Node 1 — Filter by memory
@@ -117,7 +115,6 @@ def summarise_chunks(state: StudyState) -> StudyState:
 
     combined_text = "\n\n".join(chunk.page_content for chunk in chunks)
 
-    load_dotenv()
     llm = init_chat_model(
         settings.llm_study_model_name,
         temperature=settings.llm_temperature,
@@ -212,7 +209,6 @@ def validate_summary_node(state: StudyState) -> StudyState:
     max_chars = total_chars * 3 // 4
     actual_chars = len(summary)
 
-    load_dotenv()
     llm = init_chat_model(settings.llm_study_model_name, temperature=0.0)
 
     check = llm.invoke([

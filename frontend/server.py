@@ -15,6 +15,10 @@ from pydantic import BaseModel
 
 load_dotenv()
 
+from config.settings import setup_langsmith
+
+setup_langsmith()
+
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 app = FastAPI(title="Financial Study Chatbot")
@@ -30,7 +34,7 @@ class ChatResponse(BaseModel):
 
 @app.post("/api/chat")
 async def chat(req: ChatRequest) -> ChatResponse:
-    from graph.builder import build_chat_graph
+    from graph.graph_builder import build_chat_graph
     from memory import memory_service
 
     memory_context = memory_service.format_memory_for_prompt(limit=10)
@@ -71,7 +75,7 @@ class QuizSubmitResponse(BaseModel):
 
 @app.post("/api/quiz/generate")
 async def quiz_generate(req: QuizGenerateRequest) -> QuizGenerateResponse:
-    from quiz.service import quiz_service
+    from quiz.quiz_service import quiz_service
 
     try:
         result = await quiz_service.generate_quiz(count=req.count)
@@ -87,7 +91,7 @@ async def quiz_generate(req: QuizGenerateRequest) -> QuizGenerateResponse:
 
 @app.post("/api/quiz/submit")
 async def quiz_submit(req: QuizSubmitRequest) -> QuizSubmitResponse:
-    from quiz.service import quiz_service
+    from quiz.quiz_service import quiz_service
 
     try:
         result = await quiz_service.submit_quiz(req.quiz_id, req.answers)
@@ -110,7 +114,7 @@ class TeachResponse(BaseModel):
 
 def _run_study_graph() -> dict:
     """Run the full study graph and return the final state."""
-    from graph.builder import build_study_graph
+    from graph.graph_builder import build_study_graph
 
     graph = build_study_graph()
     return graph.invoke({})

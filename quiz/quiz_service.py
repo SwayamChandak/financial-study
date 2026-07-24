@@ -15,11 +15,10 @@ import asyncio
 import json
 import logging
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 import redis
-from dotenv import load_dotenv
 from langchain.chat_models import init_chat_model
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -48,7 +47,7 @@ class QuizService:
     """Generate, cache, and grade MCQs based on seen Qdrant content."""
 
     def __init__(self) -> None:
-        self._llm: Optional[BaseChatModel] = None
+        self._llm: BaseChatModel | None = None
         self._gen_lock = asyncio.Lock()
 
     # ------------------------------------------------------------------
@@ -57,7 +56,6 @@ class QuizService:
 
     def _get_llm(self) -> BaseChatModel:
         if self._llm is None:
-            load_dotenv()
             self._llm = init_chat_model(
                 settings.llm_chat_model_name,
                 temperature=0.0,
@@ -438,7 +436,7 @@ class QuizService:
             public_questions.append(public_q)
 
         quiz_id = str(uuid.uuid4())
-        created = datetime.now(timezone.utc).isoformat()
+        created = datetime.now(UTC).isoformat()
 
         full_quiz = {
             "quiz_id": quiz_id,
@@ -529,7 +527,7 @@ def _pick_n(pool: list[tuple[int, int]], n: int) -> list[tuple[int, int]]:
     return [pool[i % len(pool)] for i in range(n)]
 
 
-def _extract_json_array(text: str) -> Optional[list]:
+def _extract_json_array(text: str) -> list | None:
     """Try multiple strategies to extract a JSON array from LLM output.
 
     1. Strip markdown code fences, then parse directly.
@@ -606,17 +604,16 @@ def _strip_code_fences(text: str) -> str:
         text = after_fence[first_nl + 1 :] if first_nl != -1 else after_fence
 
     # Remove trailing fence
-    if text.endswith("```"):
-        text = text[:-3]
+    text = text.removesuffix("```")
 
     return text.strip()
 
 
-def _try_parse(text: str) -> Optional[list]:
+def _try_parse(text: str) -> list | None:
     """Attempt to ``json.loads`` *text*, with trailing-comma workaround and
     bracket-correction fallback for LLMs that confuse ``[...]`` with ``{...}``."""
 
-    def _attempt(t: str) -> Optional[list]:
+    def _attempt(t: str) -> list | None:
         try:
             parsed = json.loads(t)
             return parsed if isinstance(parsed, list) else None

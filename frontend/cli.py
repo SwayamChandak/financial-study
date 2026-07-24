@@ -50,9 +50,11 @@ def main() -> None:
 
     load_dotenv()
 
-    from graph.builder import build_chat_graph
+    from config.settings import setup_langsmith
+    from graph.graph_builder import build_chat_graph
     from memory import memory_service
 
+    setup_langsmith()
     graph = build_chat_graph()
 
     print(f"{CLEAR}{GREEN}{BOLD}Financial Study — Chatbot{RESET}")

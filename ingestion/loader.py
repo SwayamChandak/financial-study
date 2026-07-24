@@ -21,13 +21,12 @@ Fields added later by chunker.py:
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import fitz  # PyMuPDF — used directly for structured text extraction
 from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_core.documents import Document
-
 
 # ── Regex patterns ────────────────────────────────────────────────────────────
 
@@ -154,7 +153,7 @@ def load_documents(source_dir: str) -> list[Document]:
     if not pdf_files:
         raise ValueError(f"No PDF files found in: {source_dir}")
 
-    ingested_at = datetime.now(timezone.utc).isoformat()
+    ingested_at = datetime.now(UTC).isoformat()
 
     all_docs: list[Document] = []
     for pdf_path in pdf_files:

@@ -15,8 +15,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 import redis
 
@@ -37,9 +36,9 @@ class MemoryService:
     the conversation history grows too large.
     """
 
-    def __init__(self, redis_url: Optional[str] = None) -> None:
+    def __init__(self, redis_url: str | None = None) -> None:
         self._redis_url = redis_url or settings.redis_url
-        self._redis: Optional[redis.Redis] = None
+        self._redis: redis.Redis | None = None
         self._connect()
 
     # ------------------------------------------------------------------
@@ -55,7 +54,7 @@ class MemoryService:
             logger.warning("Redis connection failed (%s) — memory will not be persisted", exc)
             self._redis = None
 
-    def _get_client(self) -> Optional[redis.Redis]:
+    def _get_client(self) -> redis.Redis | None:
         """Return the Redis client, attempting a reconnection if it is ``None``."""
         if self._redis is None:
             try:
@@ -64,7 +63,7 @@ class MemoryService:
                 pass
         return self._redis
 
-    def _ensure_connection(func):  # noqa: N805
+    def _ensure_connection(func):
         """Decorator that calls ``_get_client`` and passes the client as the first argument.
 
         If Redis is unavailable the wrapped function receives ``None`` and can
@@ -85,7 +84,7 @@ class MemoryService:
     def _serialize_entry(question: str, answer: str) -> str:
         return json.dumps(
             {
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "question": question,
                 "answer": answer,
             },
@@ -97,7 +96,7 @@ class MemoryService:
     # ------------------------------------------------------------------
 
     @_ensure_connection
-    def add_to_memory(self, client: Optional[redis.Redis], question: str, answer: str) -> None:
+    def add_to_memory(self, client: redis.Redis | None, question: str, answer: str) -> None:
         """Append a question/answer pair to the conversation history.
 
         Args:
@@ -123,7 +122,7 @@ class MemoryService:
             logger.error("Failed to add entry to memory: %s", exc)
 
     @_ensure_connection
-    def get_recent_memory(self, client: Optional[redis.Redis], limit: int = 10) -> list[dict]:  # noqa: C901
+    def get_recent_memory(self, client: redis.Redis | None, limit: int = 10) -> list[dict]:
         """Return the *limit* most recent conversation turns.
 
         Results are returned oldest-first (chronological order).
@@ -159,7 +158,7 @@ class MemoryService:
         return entries
 
     @_ensure_connection
-    def clear_memory(self, client: Optional[redis.Redis]) -> None:
+    def clear_memory(self, client: redis.Redis | None) -> None:
         """Delete the entire conversation history from Redis."""
         if client is None:
             logger.debug("Redis unavailable — skipping clear_memory")
@@ -172,7 +171,7 @@ class MemoryService:
             logger.error("Failed to clear memory: %s", exc)
 
     @_ensure_connection
-    def get_memory_count(self, client: Optional[redis.Redis]) -> int:
+    def get_memory_count(self, client: redis.Redis | None) -> int:
         """Return the number of entries currently stored in memory."""
         if client is None:
             return 0
@@ -238,7 +237,7 @@ class MemoryService:
     # ------------------------------------------------------------------
 
     @_ensure_connection
-    def _summarize_memory(self, client: Optional[redis.Redis]) -> None:  # noqa: C901
+    def _summarize_memory(self, client: redis.Redis | None) -> None:
         """Compress old entries into a single summary entry.
 
         Triggered automatically when the list exceeds ``MAX_MESSAGES_BEFORE_SUMMARY``.
@@ -277,7 +276,7 @@ class MemoryService:
 
         summary_entry = json.dumps(
             {
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "question": "[SYSTEM SUMMARY]",
                 "answer": summary_text,
             },

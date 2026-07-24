@@ -1,19 +1,10 @@
 """
 Application settings — loaded from environment variables or a .env file.
-
-All fields can be overridden via environment variables or a .env file.
-Environment variable names match the field names (case-insensitive).
-
-Example .env:
-    EMBEDDING_MODEL_NAME=sentence-transformers/all-MiniLM-L12-v2
-    QDRANT_URL=http://localhost:6333
-    TELEGRAM_BOT_TOKEN=your-token-here
-    REDIS_URL=redis://localhost:6379
-    OLLAMA_BASE_URL=http://localhost:11434
-    OLLAMA_MODEL=llama3.2
 """
 
 from __future__ import annotations
+
+import os
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -22,9 +13,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """
     Application settings for the studying agent.
-
-    All fields can be overridden via environment variables or a .env file.
-    Environment variable names match the field names (case-insensitive).
+    Overridable via environment variables or a .env file.
     """
 
     model_config = SettingsConfigDict(
@@ -33,14 +22,13 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # LLM — Chatbot (Ollama)
+    # LLM — Chatbot
     llm_chat_model_name: str = Field(default="ollama:llama3.2")
 
-    # LLM — Study / summary (Ollama)
+    # LLM — Study / summary
     llm_study_model_name: str = Field(default="ollama:llama3.2")
 
     llm_temperature: float = Field(default=0.2)
-    llm_max_tokens: int = Field(default=2048)
     ollama_base_url: str = Field(default="http://localhost:11434")
     ollama_model: str = Field(default="llama3.2")
 
@@ -59,28 +47,25 @@ class Settings(BaseSettings):
     chunk_size: int = Field(default=600)
     chunk_overlap: int = Field(default=75)
 
-    # Telegram
-    telegram_bot_token: str = Field(default="")
-    telegram_allowed_chat_ids: list[int] = Field(default_factory=list)
-
-    # Scheduler
-    scheduler_cron: str = Field(default="0 8 * * *")
-    scheduler_timezone: str = Field(default="Asia/Kolkata")
-
     # LangSmith — tracing
     langsmith_tracing: bool = Field(default=True)
     langsmith_api_key: str = Field(default="")
     langsmith_project: str = Field(default="financial-study")
 
-    # Graph
-    graph_recursion_limit: int = Field(default=25)
-
-    # Redis — used for persistent progress memory (last_module_no, last_chapter_no)
+    # Redis — used for persistent progress memory
     redis_url: str = Field(default="redis://localhost:6379")
 
     # Quiz
     quiz_default_count: int = Field(default=10)
     quiz_cache_ttl: int = Field(default=3600)
+
+
+def setup_langsmith() -> None:
+    """Configure LangSmith tracing from application settings."""
+    os.environ.setdefault("LANGSMITH_TRACING", str(settings.langsmith_tracing).lower())
+    if settings.langsmith_api_key:
+        os.environ["LANGSMITH_API_KEY"] = settings.langsmith_api_key
+    os.environ.setdefault("LANGSMITH_PROJECT", settings.langsmith_project)
 
 
 settings = Settings()
