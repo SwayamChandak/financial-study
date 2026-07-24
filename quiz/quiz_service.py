@@ -424,6 +424,16 @@ class QuizService:
         if not all_questions:
             raise QuizGenerationError("Failed to generate any questions — LLM error or empty content.")
 
+        # Deduplicate by question text — same chapter picks or LLM repeats
+        seen_questions: set[str] = set()
+        unique_questions: list[dict] = []
+        for q in all_questions:
+            text = q.get("question", "")
+            if text and text not in seen_questions:
+                seen_questions.add(text)
+                unique_questions.append(q)
+        all_questions = unique_questions
+
         # Assign IDs and remove correct_answer from the public version
         public_questions: list[dict] = []
         for idx, q in enumerate(all_questions, start=1):
