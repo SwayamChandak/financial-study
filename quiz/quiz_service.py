@@ -118,7 +118,9 @@ class QuizService:
                 break
             offset = next_offset
 
-        print(f"[Quiz] Extracted {len(chapters)} completed chapters from Qdrant: {chapters}")
+        print(
+            f"[Quiz] Extracted {len(chapters)} completed chapters from Qdrant: {chapters}"
+        )
         return sorted(chapters)
 
     # ------------------------------------------------------------------
@@ -141,8 +143,7 @@ class QuizService:
         questions = [
             e["question"]
             for e in entries
-            if e.get("question")
-            and e["question"] != "[SYSTEM SUMMARY]"
+            if e.get("question") and e["question"] != "[SYSTEM SUMMARY]"
         ]
 
         if not questions:
@@ -205,7 +206,9 @@ class QuizService:
           - 50 % from chapters before those
         """
         if not completed:
-            raise QuizGenerationError("No completed chapters found — study material first.")
+            raise QuizGenerationError(
+                "No completed chapters found — study material first."
+            )
 
         # ── recent = last 2 completed chapters ──────────────────────────
         recent = set(completed[-2:])
@@ -218,8 +221,7 @@ class QuizService:
 
             topic_pool = [c for c in completed if c in question_chapters]
             random_pool = [
-                c for c in completed
-                if c not in topic_pool and c not in recent
+                c for c in completed if c not in topic_pool and c not in recent
             ]
 
             picks: list[tuple[int, int]] = []
@@ -260,7 +262,9 @@ class QuizService:
 
         content = self._fetch_chapter_content(module_no, chapter_no)
         if not content.strip():
-            print(f"[Quiz] Empty content for Module {module_no}, Chapter {chapter_no} — skipping")
+            print(
+                f"[Quiz] Empty content for Module {module_no}, Chapter {chapter_no} — skipping"
+            )
             return []
 
         all_questions: list[dict] = []
@@ -276,7 +280,9 @@ class QuizService:
             else:
                 # Batch failed — fall back to 1 question at a time
                 if batch_size > 1:
-                    print(f"[Quiz] Batch of {batch} failed for M{module_no} Ch{chapter_no}, falling back to 1x1")
+                    print(
+                        f"[Quiz] Batch of {batch} failed for M{module_no} Ch{chapter_no}, falling back to 1x1"
+                    )
                     batch_size = 1
                 else:
                     # Even 1 question failed — give up on this chapter
@@ -296,7 +302,9 @@ class QuizService:
         if batch_size < 1:
             return []
 
-        print(f"[Quiz] Generating {batch_size} questions for Module {module_no}, Chapter {chapter_no} …")
+        print(
+            f"[Quiz] Generating {batch_size} questions for Module {module_no}, Chapter {chapter_no} …"
+        )
         llm = self._get_llm()
 
         prompt = (
@@ -310,19 +318,19 @@ class QuizService:
             f"2. Each question has exactly 4 options labeled A, B, C, D.\n"
             f"3. One option is correct; the other three are plausible distractors.\n"
             f"4. Include a brief explanation of why the correct answer is right.\n"
-            f"5. Include a \"source\" field with the value \"Module {module_no}, Chapter {chapter_no}\".\n\n"
+            f'5. Include a "source" field with the value "Module {module_no}, Chapter {chapter_no}".\n\n'
             f"IMPORTANT — Output ONLY a valid JSON array. Each question must be an object "
             f"wrapped in {{curly braces}}, NOT in [square brackets].\n\n"
             f"Correct example:\n"
-            f'[\n'
-            f'  {{\n'
+            f"[\n"
+            f"  {{\n"
             f'    "question": "What is an IPO?",\n'
             f'    "options": {{"A": "...", "B": "...", "C": "...", "D": "..."}},\n'
             f'    "correct_answer": "A",\n'
             f'    "explanation": "...",\n'
             f'    "source": "Module {module_no}, Chapter {chapter_no}"\n'
-            f'  }}\n'
-            f']\n\n'
+            f"  }}\n"
+            f"]\n\n"
             f"Wrong examples (do NOT do this):\n"
             f'1. ["question": "...", "options": {{...}}, "correct_answer": "..."] — using [ ] instead of {{ }}\n'
             f'2. {{"question": "..."}} {{"question": "..."}} — separate objects not inside an array\n\n'
@@ -330,22 +338,37 @@ class QuizService:
         )
 
         try:
-            response = llm.invoke([
-                SystemMessage(content="You are a precise quiz generator that outputs only valid JSON."),
-                HumanMessage(content=prompt),
-            ])
+            response = llm.invoke(
+                [
+                    SystemMessage(
+                        content="You are a precise quiz generator that outputs only valid JSON."
+                    ),
+                    HumanMessage(content=prompt),
+                ]
+            )
             raw = response.content.strip()
-            print(f"[Quiz] LLM raw response for M{module_no} Ch{chapter_no}:\n{raw[:500]}")
+            print(
+                f"[Quiz] LLM raw response for M{module_no} Ch{chapter_no}:\n{raw[:500]}"
+            )
             questions = _extract_json_array(raw)
             if questions is None:
-                print(f"[Quiz] Failed to parse JSON for M{module_no} Ch{chapter_no} — retrying with 1 question")
+                print(
+                    f"[Quiz] Failed to parse JSON for M{module_no} Ch{chapter_no} — retrying with 1 question"
+                )
                 return []
             if not isinstance(questions, list):
-                print(f"[Quiz] LLM did not return a list — got {type(questions).__name__}")
+                print(
+                    f"[Quiz] LLM did not return a list — got {type(questions).__name__}"
+                )
                 return []
             return questions[:batch_size]
         except Exception as exc:
-            logger.error("LLM quiz generation failed for M%s Ch%s: %s", module_no, chapter_no, exc)
+            logger.error(
+                "LLM quiz generation failed for M%s Ch%s: %s",
+                module_no,
+                chapter_no,
+                exc,
+            )
             return []
 
     @staticmethod
@@ -354,8 +377,12 @@ class QuizService:
         client = QdrantClient(url=settings.qdrant_url)
         scroll_filter = Filter(
             must=[
-                FieldCondition(key="metadata.module_no", match=MatchValue(value=module_no)),
-                FieldCondition(key="metadata.chapter_no", match=MatchValue(value=chapter_no)),
+                FieldCondition(
+                    key="metadata.module_no", match=MatchValue(value=module_no)
+                ),
+                FieldCondition(
+                    key="metadata.chapter_no", match=MatchValue(value=chapter_no)
+                ),
             ]
         )
 
@@ -399,7 +426,9 @@ class QuizService:
     def _generate_quiz_sync(self, count: int) -> dict:
         completed = self._get_completed_chapters()
         if not completed:
-            raise QuizGenerationError("No completed chapters found — study some material first.")
+            raise QuizGenerationError(
+                "No completed chapters found — study some material first."
+            )
 
         question_chapters = self._get_user_question_chapters(completed)
         selected = self._select_chapters(completed, question_chapters, count)
@@ -422,7 +451,9 @@ class QuizService:
                 all_questions.extend(future.result())
 
         if not all_questions:
-            raise QuizGenerationError("Failed to generate any questions — LLM error or empty content.")
+            raise QuizGenerationError(
+                "Failed to generate any questions — LLM error or empty content."
+            )
 
         # Assign IDs and remove correct_answer from the public version
         public_questions: list[dict] = []
@@ -471,7 +502,7 @@ class QuizService:
         self,
         quiz_id: str,
         answers: dict[str, str],
-    ) -> dict:
+    ) -> dict[str, object]:
         """Grade a submitted quiz using the cached data.
 
         Returns score, per-question results with correct answers and
@@ -492,16 +523,18 @@ class QuizService:
             if is_correct:
                 correct_count += 1
 
-            results.append({
-                "question_id": qid,
-                "question": q.get("question", ""),
-                "options": q.get("options", {}),
-                "user_answer": user_answer,
-                "correct_answer": correct,
-                "is_correct": is_correct,
-                "explanation": q.get("explanation", ""),
-                "source": q.get("source", ""),
-            })
+            results.append(
+                {
+                    "question_id": qid,
+                    "question": q.get("question", ""),
+                    "options": q.get("options", {}),
+                    "user_answer": user_answer,
+                    "correct_answer": correct,
+                    "is_correct": is_correct,
+                    "explanation": q.get("explanation", ""),
+                    "source": q.get("source", ""),
+                }
+            )
 
         total = len(questions)
         return {

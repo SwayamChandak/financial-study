@@ -37,21 +37,34 @@ financial-study/
 └── hld.md                       # High-level design document
 ```
 
-## Setup
+## Setup with uv
+
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/) if it is not already available, then run the following from the repository root:
 
 ```bash
-python -m venv .venv
-.venv\Scripts\activate   # Windows
-pip install -e ".[dev]"
-cp .env.example .env
+uv sync --extra dev
 ```
+
+`uv sync` creates the project virtual environment in `.venv` and installs the dependencies from `pyproject.toml`. You do not need to activate the environment when using `uv run`.
+
+Create the environment file:
+
+```bash
+# macOS/Linux
+cp .env.example .env
+
+# Windows PowerShell
+Copy-Item .env.example .env
+```
+
+Update `.env` with the required API keys and service URLs. Start Qdrant, Redis, and Ollama as needed for the workflows you want to use.
 
 ## Running
 
 ### Ingestion pipeline
 
 ```bash
-python main.py ingest --source-dir data
+uv run python main.py ingest --source-dir data
 ```
 
 Loads PDFs, chunks them, generates embeddings, and stores them in Qdrant.
@@ -59,7 +72,7 @@ Loads PDFs, chunks them, generates embeddings, and stores them in Qdrant.
 ### Study workflow
 
 ```bash
-python main.py run
+uv run python main.py run
 ```
 
 Runs the daily study graph: reads current position from Redis, fetches chunks from Qdrant, generates an LLM summary, validates it (with retries), and advances progress.
@@ -67,7 +80,7 @@ Runs the daily study graph: reads current position from Redis, fetches chunks fr
 ### CLI chatbot
 
 ```bash
-python -m frontend.cli
+uv run python -m frontend.cli
 ```
 
 Interactive chatbot with guardrails and RAG over studied (seen) Qdrant content.
@@ -76,6 +89,7 @@ Interactive chatbot with guardrails and RAG over studied (seen) Qdrant content.
 
 ```bash
 cd frontend/ui
+npm install
 npm run build
 cd ../..
 uv run python -m frontend.server
@@ -86,7 +100,7 @@ Opens a FastAPI server at http://127.0.0.1:8000 with chat, quiz generation/submi
 ### One-off query
 
 ```bash
-python main.py chat "your question"
+uv run python main.py chat "your question"
 ```
 
 ## Graphs

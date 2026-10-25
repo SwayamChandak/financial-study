@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "python-pep8-coach": {
+      "source": "grupoyacck/gy-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/python-pep8-coach/SKILL.md",
+      "computedHash": "56060964bd132cd2a2105294aaca223de258bd975ba9f774cf34cf8bf5c0c52d"
+    }
+  }
+}

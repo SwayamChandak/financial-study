@@ -33,9 +33,7 @@ class Settings(BaseSettings):
     ollama_model: str = Field(default="llama3.2")
 
     # Embeddings
-    embedding_model_name: str = Field(
-        default="sentence-transformers/all-MiniLM-L12-v2"
-    )
+    embedding_model_name: str = Field(default="sentence-transformers/all-MiniLM-L12-v2")
     embedding_normalize: bool = Field(default=True)
 
     # Qdrant vector store
@@ -52,7 +50,12 @@ class Settings(BaseSettings):
     langsmith_api_key: str = Field(default="")
     langsmith_project: str = Field(default="financial-study")
 
-    # Redis — used for persistent progress memory
+    # PostgreSQL — session ownership and study progress
+    database_url: str = Field(
+        default="postgresql+asyncpg://localhost:5432/financial_study"
+    )
+
+    # Redis — chat memory and quiz cache
     redis_url: str = Field(default="redis://localhost:6379")
 
     # Quiz

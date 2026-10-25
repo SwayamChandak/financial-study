@@ -23,8 +23,9 @@ from __future__ import annotations
 import re
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import cast
 
-import fitz  # PyMuPDF — used directly for structured text extraction
+import pymupdf as fitz  # PyMuPDF — used directly for structured text extraction
 from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_core.documents import Document
 
@@ -65,7 +66,10 @@ def _extract_header_text(page: fitz.Page) -> str:
       - Split at the end of the timestamp; take everything after it as the title.
       - If no timestamp is found, fall back to the first non-numeric line.
     """
-    blocks = page.get_text("blocks")
+    blocks = cast(
+        list[tuple[float, float, float, float, str, int, int]],
+        page.get_text("blocks"),  # pyright: ignore[reportUnknownMemberType]
+    )
     # Each block tuple: (x0, y0, x1, y1, text, block_no, block_type)
     text_blocks = sorted(
         [(b[1], b[4].strip()) for b in blocks if b[6] == 0 and b[4].strip()],
@@ -88,7 +92,7 @@ def _extract_header_text(page: fitz.Page) -> str:
     return ""
 
 
-def _extract_pdf_metadata(pdf_path: Path) -> dict:
+def _extract_pdf_metadata(pdf_path: Path) -> dict[str, str | int | bool]:
     """
     Open *pdf_path* with PyMuPDF and return the full base metadata dict.
 
@@ -111,7 +115,10 @@ def _extract_pdf_metadata(pdf_path: Path) -> dict:
 
         # Search the first 3 pages for the "Module N. Title" line
         for i in range(min(3, len(doc))):
-            text = doc[i].get_text()
+            text = cast(
+                str,
+                doc[i].get_text("text"),  # pyright: ignore[reportUnknownMemberType]
+            )
             m = _MODULE_RE.search(text)
             if m:
                 module_no = int(m.group(1))
