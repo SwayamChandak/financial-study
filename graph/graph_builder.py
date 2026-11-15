@@ -21,6 +21,7 @@ Usage:
 from __future__ import annotations
 
 from langgraph.graph import END, START, StateGraph
+from langgraph.graph.state import CompiledStateGraph
 
 from graph.chat_nodes import (
     guardrail_node,
@@ -76,7 +77,7 @@ def _decide_after_summary_validation(state: StudyState) -> str:
     return "retry"
 
 
-def build_study_graph() -> StateGraph:
+def build_study_graph() -> CompiledStateGraph[StudyState, None, StudyState, StudyState]:
     """
     Construct and compile the daily study workflow.
 
@@ -111,7 +112,7 @@ def build_study_graph() -> StateGraph:
     return builder.compile()
 
 
-def build_chat_graph() -> StateGraph:
+def build_chat_graph() -> CompiledStateGraph[StudyState, None, StudyState, StudyState]:
     """
     Construct and compile the chatbot workflow.
 
@@ -148,6 +149,10 @@ def build_chat_graph() -> StateGraph:
     )
 
     return builder.compile()
+
+
+study_graph = build_study_graph()
+chat_graph = build_chat_graph()
 
 
 if __name__ == "__main__":

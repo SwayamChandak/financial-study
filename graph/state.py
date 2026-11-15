@@ -4,7 +4,7 @@ Graph state — shared data passed between nodes in the study and chatbot pipeli
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, NotRequired
 
 from langchain_core.documents import Document
 from langchain_core.messages import AnyMessage
@@ -12,6 +12,7 @@ from typing_extensions import TypedDict
 
 
 class StudyState(TypedDict):
+    llm_session_id: NotRequired[str | None]
     # Study pipeline
     current_module: int
     current_chapter: int

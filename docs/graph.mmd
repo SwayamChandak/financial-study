@@ -1,0 +1,33 @@
+%% Dashed arrows are conditional routes; labels are routing outcomes.
+flowchart TD
+  subgraph study["Study graph"]
+    study_start([<p>__start__</p>]):::first
+    filter_by_memory(filter_by_memory)
+    summarise_chunks(summarise_chunks)
+    validate_summary(validate_summary)
+    update_progress(update_progress)
+    study_end([<p>__end__</p>]):::last
+    study_start --> filter_by_memory;
+    filter_by_memory --> summarise_chunks;
+    summarise_chunks --> validate_summary;
+    validate_summary -. &nbsp;retry&nbsp; .-> summarise_chunks;
+    validate_summary -. &nbsp;max_retries&nbsp; .-> update_progress;
+    update_progress --> study_end;
+  end
+  subgraph chat["Chat graph"]
+    chat_start([<p>__start__</p>]):::first
+    guardrail_node(guardrail_node)
+    rag_lookup_node(rag_lookup_node)
+    validate_response_node(validate_response_node)
+    chat_end([<p>__end__</p>]):::last
+    chat_start --> guardrail_node;
+    guardrail_node -. &nbsp;flagged&nbsp; .-> chat_end;
+    guardrail_node -. &nbsp;clean&nbsp; .-> rag_lookup_node;
+    rag_lookup_node -. &nbsp;evidence_missing&nbsp; .-> chat_end;
+    rag_lookup_node -. &nbsp;has_evidence&nbsp; .-> validate_response_node;
+    validate_response_node -. &nbsp;max_retries&nbsp; .-> chat_end;
+    validate_response_node -. &nbsp;retry&nbsp; .-> rag_lookup_node;
+  end
+classDef default fill:#f2f0ff,line-height:1.2
+classDef first fill-opacity:0
+classDef last fill:#bfb6fc

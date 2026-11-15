@@ -1,0 +1,9 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "study": "./graph/graph_builder.py:study_graph",
+    "chat": "./graph/graph_builder.py:chat_graph"
+  },
+  "env": ".env",
+  "python_version": "3.12"
+}

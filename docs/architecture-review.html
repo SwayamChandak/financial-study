@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Financial Study | Architecture Review</title>
+  <style>
+    :root { --ink:#17263d; --muted:#526177; --line:#d6dfeb; --paper:#fff; --bg:#f3f6fb; --blue:#174eae; --teal:#086956; --amber:#854600; }
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; scroll-padding-top:5rem; }
+    body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.65 system-ui,-apple-system,"Segoe UI",sans-serif; }
+    a { color:var(--blue); text-underline-offset:3px; overflow-wrap:anywhere; }
+    a:focus-visible, summary:focus-visible { outline:3px solid #ba5b00; outline-offset:4px; }
+    .skip { position:absolute; left:1rem; top:-5rem; background:white; padding:.7rem; z-index:3; }
+    .skip:focus { top:1rem; }
+    header { background:#12233e; color:#fff; padding:4rem max(1.25rem,calc((100% - 1120px)/2)); }
+    .eyebrow { text-transform:uppercase; letter-spacing:.16em; font-size:.78rem; font-weight:750; color:#b5d4ff; }
+    h1 { font-size:clamp(2rem,4.5vw,3.8rem); line-height:1.13; letter-spacing:-.04em; max-width:900px; margin:.8rem 0 1.2rem; }
+    header p { color:#d5e0f0; max-width:800px; }
+    header .meta { font-size:.85rem; color:#b9c9de; }
+    nav { position:sticky; top:0; z-index:2; background:#fff; border-bottom:1px solid var(--line); padding:.8rem 1.25rem; display:flex; flex-wrap:wrap; justify-content:center; gap:.4rem 1.8rem; font-size:.9rem; }
+    main { max-width:1160px; margin:auto; padding:2rem 1.25rem 4rem; }
+    section { margin-bottom:2.5rem; }
+    h2 { font-size:1.7rem; letter-spacing:-.025em; margin:0 0 1rem; }
+    h3 { font-size:1.15rem; line-height:1.4; margin:0 0 .65rem; }
+    p { margin:.6rem 0 1rem; }
+    ul,ol { padding-left:1.35rem; }
+    li { margin:.4rem 0; }
+    code { font: .88em/1.5 ui-monospace,Consolas,monospace; background:#edf2f8; padding:.12em .3em; border-radius:4px; overflow-wrap:anywhere; }
+    .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; }
+    .metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1rem; margin-bottom:1.5rem; }
+    .card, details { background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:1.4rem; }
+    .metric strong { display:block; font-size:2rem; line-height:1.2; color:var(--blue); }
+    .metric span { color:var(--muted); font-size:.86rem; }
+    .callout { border-left:5px solid var(--blue); background:#e9f1ff; padding:1.1rem 1.35rem; border-radius:0 9px 9px 0; }
+    .warning { border-color:#a75a00; background:#fff4e5; }
+    .muted, .evidence { color:var(--muted); font-size:.9rem; }
+    .badge { display:inline-block; padding:.15rem .55rem; border-radius:5px; font-size:.75rem; font-weight:750; letter-spacing:.025em; white-space:nowrap; }
+    .p1 { background:#fff0d9; color:#774000; }
+    .p2 { background:#e8f0ff; color:#174eae; }
+    .p3 { background:#e7f4ef; color:#08604e; }
+    .table-wrap { overflow-x:auto; background:white; border:1px solid var(--line); border-radius:10px; }
+    table { width:100%; border-collapse:collapse; text-align:left; font-size:.9rem; }
+    th { background:#eaf0f8; font-weight:750; }
+    td,th { padding:.9rem 1rem; border-bottom:1px solid var(--line); vertical-align:top; }
+    tr:last-child td { border-bottom:0; }
+    caption { text-align:left; padding:1rem; color:var(--muted); }
+    details { margin-bottom:1rem; }
+    summary { cursor:pointer; font-size:1.1rem; font-weight:750; line-height:1.6; }
+    summary .badge { margin-right:.45rem; }
+    details[open] summary { margin-bottom:1.2rem; padding-bottom:.9rem; border-bottom:1px solid var(--line); }
+    .finding-body { padding-left:.2rem; }
+    .finding-body p:last-child { margin-bottom:0; }
+    .diagram { display:grid; gap:.7rem; text-align:center; }
+    .diagram .box { padding:.85rem; border:1px solid #c2d5ec; background:#edf4ff; border-radius:8px; }
+    .diagram .core { background:#e9f5ef; border-color:#b4d7c6; }
+    .arrow { color:var(--muted); font-size:.85rem; }
+    .diagram .row { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.65rem; }
+    .diagram small { display:block; color:var(--muted); }
+    footer { border-top:1px solid var(--line); padding-top:1.5rem; color:var(--muted); font-size:.85rem; }
+    @media(max-width:700px) { .grid { grid-template-columns:1fr; } .metrics { grid-template-columns:repeat(2,minmax(0,1fr)); } header { padding-top:2.5rem; } nav { position:static; gap:.3rem 1rem; } .card,details { padding:1rem; } .diagram .row { grid-template-columns:1fr; } }
+    @media print { body { background:white; font-size:10pt; } header { padding:1.5rem; } nav,.skip { display:none; } main { padding:1rem 0; } details,.card { break-inside:avoid; } .table-wrap { overflow:visible; } a { color:inherit; } html { scroll-behavior:auto; } }
+    @media(prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to report</a>
+  <header>
+    <div class="eyebrow">Engineering assessment / 09 November 2026</div>
+    <h1>Keep the monolith.<br>Make its boundaries real.</h1>
+    <p>Financial Study has a sensible feature layout. Its biggest architectural gaps are shared mutable state, blocking workflow execution, and inconsistent contracts between entry points and persistence systems.</p>
+    <p class="meta">Scope: current local working tree, including uncommitted changes. Recommendation report only; no application code changed. Priorities are delivery priorities, not vulnerability ratings.</p>
+  </header>
+  <nav aria-label="Report navigation">
+    <a href="#verdict">Verdict</a><a href="#architecture">Architecture</a><a href="#findings">Recommendations</a><a href="#roadmap">Roadmap</a><a href="#verification">Evidence &amp; limits</a>
+  </nav>
+  <main id="main">
+    <section id="verdict" aria-labelledby="verdict-title">
+      <div class="metrics">
+        <div class="card metric"><strong>10</strong><span>prioritized recommendations</span></div>
+        <div class="card metric"><strong>2</strong><span>LangGraph workflows</span></div>
+        <div class="card metric"><strong>5</strong><span>FastAPI POST endpoints</span></div>
+        <div class="card metric"><strong>9 / 9</strong><span>existing tests passed</span></div>
+      </div>
+      <h2 id="verdict-title">Executive verdict</h2>
+      <div class="callout">
+        <strong>Use a modular monolith, not microservices.</strong> Keep FastAPI, LangGraph, Redis, Qdrant, and the existing Python feature packages. Introduce a small shared application boundary, explicit workflow results, and one authoritative progress model. More services or a framework rewrite would add coordination costs without addressing the root problems.
+      </div>
+      <div class="grid" style="margin-top:1rem">
+        <div class="card">
+          <h3>Preserve what already works</h3>
+          <ul>
+            <li>Separate ingestion, graph, memory, quiz, and database packages.</li>
+            <li>Explicit graph routing and an evidence gate before RAG generation.</li>
+            <li>Server-side quiz answer storage; grading does not need another LLM call.</li>
+            <li>Pydantic settings, a lockfile, Alembic groundwork, API contract tests, and an existing architecture guide.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Start with these decisions</h3>
+          <ol>
+            <li><strong>Single-user or multi-user?</strong> Current runtime state is global. Session ownership is not implemented just because database models exist.</li>
+            <li><strong>When is a chapter completed?</strong> Retry exhaustion currently advances progress even when validation failed.</li>
+            <li><strong>Which chat entry points are supported?</strong> FastAPI/CLI add memory; the direct LangGraph export does not.</li>
+          </ol>
+        </div>
+      </div>
+      <p class="muted">For a private single-user tool, start with recommendations 2, 4, and 7. Before a multi-user rollout, recommendation 1 becomes a release prerequisite. Effort estimates below are relative implementation sizes, not measured delivery dates.</p>
+    </section>
+
+    <section id="architecture" aria-labelledby="architecture-title">
+      <h2 id="architecture-title">Current architecture and smallest useful target</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Today: feature separation, coupled execution</h3>
+          <div class="diagram" aria-label="Current architecture">
+            <div class="box">React UI <small>calls FastAPI only</small></div>
+            <div class="arrow">HTTP requests</div>
+            <div class="box">FastAPI + Python CLIs <small>chat memory orchestration repeated in callers</small></div>
+            <div class="arrow">synchronous graph invocation</div>
+            <div class="box">Chat / study graphs + quiz service <small>nodes and services construct infrastructure clients</small></div>
+            <div class="row"><div class="box">Redis <small>global memory &amp; progress</small></div><div class="box">Qdrant <small>content + global seen flags</small></div><div class="box">LLMs <small>generation &amp; validation</small></div></div>
+            <div class="box">Separate LangGraph API <small>exports raw graphs; chat memory wrapper absent</small></div>
+          </div>
+          <p class="muted">PostgreSQL has models and a migration, but no runtime API/graph integration. It is not currently a second working progress backend.</p>
+        </div>
+        <div class="card">
+          <h3>Target: reuse the same use cases everywhere</h3>
+          <div class="diagram" aria-label="Recommended architecture">
+            <div class="box">React UI / FastAPI / CLI / LangGraph API <small>transport adapters; validate input and resolve context</small></div>
+            <div class="arrow">one consistent application boundary</div>
+            <div class="box core">Chat, study, and quiz use cases <small>explicit results, memory policy, progress decisions</small></div>
+            <div class="arrow">workflow orchestration</div>
+            <div class="box core">Chat graph / study graph / quiz generation <small>typed state; explicit failure and retry outcomes</small></div>
+            <div class="arrow">small, injected dependencies</div>
+            <div class="row"><div class="box">Progress &amp; memory <small>one authority per datum</small></div><div class="box">Content store <small>ordered, versioned chunks</small></div><div class="box">Model clients <small>reuse, timeouts, structured output</small></div></div>
+          </div>
+          <p class="muted">This is a dependency direction, not a request for a new class per box. Start with shared functions and existing services; introduce an interface only where swapping or testing a dependency needs it.</p>
+        </div>
+      </div>
+      <p class="evidence">Architecture references: <a href="architecture.md">existing architecture guide</a>; <a href="../frontend/server.py">frontend/server.py</a>; <a href="../graph/graph_builder.py">graph/graph_builder.py:79,114,153</a>; <a href="../langgraph.json">langgraph.json:3</a>; <a href="../infrastructure/database/models.py">infrastructure/database/models.py:22,37</a>.</p>
+    </section>
+
+    <section id="findings" aria-labelledby="findings-title">
+      <h2 id="findings-title">Prioritized recommendations</h2>
+      <p><span class="badge p1">P1</span> Correctness or deployment boundary &nbsp; <span class="badge p2">P2</span> Reliability and maintainability &nbsp; <span class="badge p3">P3</span> Follow-on cleanup. Each item includes the surfaces it must reach and an acceptance check.</p>
+
+      <details open id="finding-1">
+        <summary><span class="badge p1">P1 / conditional</span> 1. Make state ownership explicit before supporting multiple users</summary>
+        <div class="finding-body">
+          <p><strong>Evidence.</strong> Redis progress uses two fixed keys; chat uses <code>chat:memory</code>; Qdrant retrieval filters only on a shared <code>metadata.seen</code> flag. Quiz chapter selection reads that same global completion state and memory. Relational user/session/progress models are not wired into execution.</p>
+          <p><strong>Consequence.</strong> Multiple callers share study position, conversation context, and eligible quiz material. A teach-start request resets the shared position. Adding session IDs only to Redis keys would still leave the shared Qdrant completion filter wrong.</p>
+          <p><strong>Smallest complete change.</strong> If remaining single-user, document and enforce that deployment assumption. If supporting accounts, resolve a trusted owner/session context at each supported entry point; scope memory and quiz ownership to it. Keep Qdrant as a shared content index, not the authority for per-user completion. Prefer extending the existing SQLAlchemy model with completed chapters and transactional progress; use Redis for ephemeral memory/cache. Do not dual-write two independent progress authorities.</p>
+          <p><strong>Migration guardrail.</strong> Existing global memory/progress cannot be reliably assigned to several users. Export or retain it, then explicitly assign it to one designated legacy session or start new sessions after confirmation. Do not silently drop it or distribute it to all users. Existing quiz caches can expire under their current TTL.</p>
+          <p><strong>Reach.</strong> API, both CLIs, graph state/exports, memory keys, quiz lookup/cache, retrieval filters, SQL models/migration, UI session lifecycle, fixtures, and deployment documentation.</p>
+          <p><strong>Acceptance.</strong> Two independent sessions can study, chat, reset, and take quizzes without changing each other's progress, memory, or eligible chapters. Access to a quiz is checked against its owner, not merely its ID. <strong>Size:</strong> large. <strong>Confidence:</strong> high; multi-user need is a product decision.</p>
+          <p class="evidence">Sources: <a href="../memory/progress.py">memory/progress.py:17</a>; <a href="../memory/chat_memory.py">memory/chat_memory.py:26</a>; <a href="../ingestion/store.py">ingestion/store.py:122</a>; <a href="../quiz/quiz_service.py">quiz/quiz_service.py:75,82,130</a>; <a href="../frontend/server.py">frontend/server.py:124</a>; <a href="../infrastructure/database/models.py">infrastructure/database/models.py:37</a>.</p>
+        </div>
+      </details>
+
+      <details open id="finding-2">
+        <summary><span class="badge p1">P1</span> 2. Stop blocking FastAPI's event loop; own resource lifetimes</summary>
+        <div class="finding-body">
+          <p><strong>Evidence.</strong> Async chat and teach handlers call synchronous graph execution and Redis helpers directly. Graph nodes call synchronous model and Qdrant clients. Graphs are compiled in request paths despite module-level compiled exports. Embeddings are instantiated by every <code>get_vector_store()</code> call. Importing the memory package creates a service that immediately pings Redis.</p>
+          <p><strong>Consequence.</strong> A slow model, embedding load, or datastore call blocks unrelated requests on that worker's event loop. Rebuilding clients/models adds avoidable work, and import-time I/O complicates isolated tests and startup behavior. No latency measurements were taken.</p>
+          <p><strong>Smallest complete change.</strong> Keep the current synchronous graph implementation and offload the entire chat/study use case to FastAPI's threadpool, or make these handlers ordinary <code>def</code> endpoints. Include memory reads/writes, not just <code>graph.invoke()</code>. Reuse compiled graph definitions without request-local mutable state; manage reusable clients/embeddings in application lifespan, close them on shutdown, and configure supported client timeouts. Quiz already uses <code>asyncio.to_thread</code>; retain that pattern. Do not assume <code>ainvoke()</code> alone makes all custom nodes nonblocking.</p>
+          <p><strong>Reach.</strong> API handlers, shared use cases, graph factories, embedder/store, memory initialization, startup/shutdown tests. Ensure reuse is safe for the chosen clients and bound threadpool admission rather than allowing unlimited expensive jobs.</p>
+          <p><strong>Acceptance.</strong> Under a deliberately delayed fake chat/study workflow, a simultaneous lightweight request still completes before that workflow finishes. A lifecycle test confirms one embedding initialization per application lifetime and cleanup of owned clients. <strong>Size:</strong> medium. <strong>Confidence:</strong> high.</p>
+          <p class="evidence">Sources: <a href="../frontend/server.py">frontend/server.py:36,43,115,124,142</a>; <a href="../graph/graph_builder.py">graph/graph_builder.py:153</a>; <a href="../ingestion/store.py">ingestion/store.py:35</a>; <a href="../ingestion/embedder.py">ingestion/embedder.py:19</a>; <a href="../memory/__init__.py">memory/__init__.py:15</a>; <a href="../memory/chat_memory.py">memory/chat_memory.py:39,48</a>; <a href="../quiz/quiz_service.py">quiz/quiz_service.py:417</a>.</p>
+        </div>
+      </details>
+
+      <details open id="finding-3">
+        <summary><span class="badge p1">P1</span> 3. Treat chapter completion as one recoverable state transition</summary>
+        <div class="finding-body">
+          <p><strong>Evidence.</strong> Completion writes each Qdrant chunk first, then writes module and chapter through separate Redis commands. Next-chapter discovery fetches a full chapter and assumes the next module starts at chapter 1. Memory compaction reads a list, then deletes/rebuilds it later; its write pipeline does not protect the earlier read.</p>
+          <p><strong>Consequence.</strong> A failure can leave partial seen flags or a mixed module/chapter pair. Overlapping requests can race. A concurrent chat append can be lost when compaction replaces an older snapshot. A process-local quiz lock does not coordinate these operations or multiple workers.</p>
+          <p><strong>Smallest complete change.</strong> For single-user Redis persistence, update position atomically and protect chapter advancement with a version check or compare-and-set; protect compaction's read-modify-write with Redis WATCH/retry or an equivalent server-side operation. For the multi-user target, commit completion and next position in one SQL transaction with a version/row lock. Derive studied eligibility from that authority so Qdrant flags are no longer part of the commit. Add a small chapter catalog query instead of loading an entire next chapter solely to test existence.</p>
+          <p><strong>Migration guardrail.</strong> Redis and Qdrant cannot share a normal transaction. Until completion is moved to one authority, make cross-store updates idempotent and explicitly reconcilable; a Redis transaction alone does not solve partial Qdrant writes. Do not add an outbox/event platform unless the remaining cross-store requirements justify it.</p>
+          <p><strong>Reach.</strong> Study nodes, progress helpers, content store, chat-memory compaction, reset behavior, persistence tests and, if selected, the SQL migration.</p>
+          <p><strong>Acceptance.</strong> Fault injection after each write leaves either the old state or a recoverable recorded transition. Two requests starting from the same version cannot both advance it. An append during compaction is retained. Missing chapter numbers/end-of-catalog produce explicit outcomes. <strong>Size:</strong> medium to large. <strong>Confidence:</strong> high.</p>
+          <p class="evidence">Sources: <a href="../graph/study_nodes.py">graph/study_nodes.py:274,301,304,322</a>; <a href="../ingestion/store.py">ingestion/store.py:152</a>; <a href="../memory/progress.py">memory/progress.py:43,55</a>; <a href="../memory/chat_memory.py">memory/chat_memory.py:240</a>; <a href="../quiz/quiz_service.py">quiz/quiz_service.py:51,423</a>.</p>
+        </div>
+      </details>
+
+      <details open id="finding-4">
+        <summary><span class="badge p1">P1</span> 4. Give study validation one policy and explicit terminal results</summary>
+        <div class="finding-body">
+          <p><strong>Evidence.</strong> Summary generation requests 50-80% of concatenated input length; validation accepts 50-75% of summed chunk metadata lengths. The formulas and bases differ. Summary retry exhaustion routes to <code>update_progress</code> regardless of the validation flag. Teach endpoints infer <code>done</code> from an empty summary.</p>
+          <p><strong>Consequence.</strong> A response can follow the generation prompt yet fail validation. Exhausted invalid summaries still mark material studied, while the API cannot distinguish validation failure, unavailable content, and normal completion. Overlapping chunks also make chunk-length sums an imperfect measure of original chapter length.</p>
+          <p><strong>Smallest complete change.</strong> Define the accepted length rule once and use the same text basis in generation and validation. Run deterministic length checks before buying another quality-validation call. Return a small typed outcome such as <code>completed</code>, <code>validation_failed</code>, or <code>no_material</code>, plus the served chapter and retry count. Do not advance on failure by default; if accepting imperfect summaries is desired, make that an explicit, surfaced product policy. Do not silently change the current completion behavior in a refactor.</p>
+          <p><strong>Reach.</strong> Study nodes and routing, state/result schema, teach responses, UI completion/error display, CLI output, diagrams/docs, graph and API fixtures.</p>
+          <p><strong>Acceptance.</strong> Boundary tests cover minimum-1, minimum, maximum, maximum+1, empty input, and exhausted retries. Progress changes only for the chosen success policy, and the API returns the actual chapter served rather than a separately read, potentially stale position. <strong>Size:</strong> medium. <strong>Confidence:</strong> high.</p>
+          <p class="evidence">Sources: <a href="../graph/study_nodes.py">graph/study_nodes.py:71,112,124,196,208,274</a>; <a href="../graph/graph_builder.py">graph/graph_builder.py:64,103</a>; <a href="../frontend/server.py">frontend/server.py:108,124,142</a>.</p>
+        </div>
+      </details>
+
+      <details open id="finding-5">
+        <summary><span class="badge p1">P1</span> 5. Validate generated quiz data before caching or grading it</summary>
+        <div class="finding-body">
+          <p><strong>Evidence.</strong> Quiz generation accepts a parsed list without validating each question. API fields use <code>list[dict]</code>; the count has no range constraint. Grading compares <code>answers.get(id, "")</code> against <code>q.get("correct_answer", "")</code>. Broad API catches turn all generation failures into 400 and all submission failures into 404.</p>
+          <p><strong>Consequence.</strong> Parseable but malformed model output can reach the UI/cache. A missing correct answer and an unanswered question both become empty strings and compare equal. Invalid count values and operational outages are not cleanly distinguished from user errors. Generated totals may also be lower than requested after selection or generation shortfalls.</p>
+          <p><strong>Smallest complete change.</strong> Add Pydantic models for generated/cached questions and public questions: nonempty text, exactly A-D options, and a correct answer that references an option. Prefer provider-supported structured output; if the selected model does not support it, retain one bounded parse/repair path followed by the same validation. Bound requested counts according to model capacity and reject invalid requests at the API boundary. Grade only validated cached quizzes; invalidate/report incompatible old cache entries. Map known domain errors separately from logged dependency/server failures. Do not silently label unexpected failures as bad input.</p>
+          <p><strong>Reach.</strong> Quiz parser/generator/cache/grader, request/response models, UI error handling, API and grading tests. Preserve the separation between private answers and public questions. Explicitly decide whether partial quizzes are allowed; return an explicit partial outcome if so.</p>
+          <p><strong>Acceptance.</strong> Missing answers, invalid options, scalar list items, wrong counts, invalid cache payloads, and expired quizzes have deterministic results; unanswered questions never earn marks because an answer key is absent. Invalid counts return 422; dependency outages are not returned as 400/404. <strong>Size:</strong> medium. <strong>Confidence:</strong> high.</p>
+          <p class="evidence">Sources: <a href="../frontend/server.py">frontend/server.py:53,57,77,93</a>; <a href="../quiz/quiz_service.py">quiz/quiz_service.py:192,294,353,450,493,501,520,563</a>; <a href="../tests/test_quiz_grading.py">tests/test_quiz_grading.py:31</a>.</p>
+        </div>
+      </details>
+
+      <details open id="finding-6">
+        <summary><span class="badge p2">P2</span> 6. Share use-case orchestration and narrow dependency seams</summary>
+        <div class="finding-body">
+          <p><strong>Evidence.</strong> FastAPI, the main CLI, and interactive CLI each format chat memory, invoke the graph, and persist the turn. The exported chat graph only runs nodes and does not perform that caller-side memory orchestration. Both graphs use one all-required <code>StudyState</code> despite callers supplying partial state. Quiz code independently implements Qdrant scrolling/search, bypassing <code>ingestion.store</code>; its topic-search exceptions are silently ignored.</p>
+          <p><strong>Consequence.</strong> Chat behavior differs by entry point. Query filters, embedding behavior, and error policy can diverge between quiz and chat. Tests replace a module in <code>sys.modules</code> instead of injecting a small dependency. The state contract overstates required inputs and mixes unrelated workflow fields.</p>
+          <p><strong>Smallest complete change.</strong> Extract the existing chat wrapper into one use-case function and call it from FastAPI/CLI. For the LangGraph API, either include equivalent memory load/save nodes in the exported workflow or explicitly document it as a stateless, caller-managed API; do not make a workflow call itself through a use-case wrapper. Add shared content-store operations for the queries quiz actually needs, then use the same embedding/search path and error reporting. Separate chat and study input/state/output types, mark optional intermediates accurately, and annotate compiled graph return types correctly.</p>
+          <p><strong>Reach.</strong> All three chat callers, graph exports/manifest contract, state types, quiz/store queries, dependency injection in tests, and usage docs. Keep current HTTP response shapes until an intentional contract change is introduced.</p>
+          <p><strong>Acceptance.</strong> The same fake dependencies produce equivalent chat/memory behavior on each supported entry point. Quiz topic matching demonstrably uses the configured embedding path and reports failures. Type checking validates partial graph inputs without broad casts. <strong>Size:</strong> medium. <strong>Confidence:</strong> high.</p>
+          <p class="evidence">Sources: <a href="../frontend/server.py">frontend/server.py:36</a>; <a href="../main.py">main.py:31</a>; <a href="../frontend/cli.py">frontend/cli.py:76</a>; <a href="../graph/state.py">graph/state.py:14</a>; <a href="../graph/graph_builder.py">graph/graph_builder.py:79,114,154</a>; <a href="../quiz/quiz_service.py">quiz/quiz_service.py:82,130,167,173,375</a>; <a href="../tests/test_api_contract.py">tests/test_api_contract.py:52</a>.</p>
+        </div>
+      </details>
+
+      <details open id="finding-7">
+        <summary><span class="badge p2">P2</span> 7. Make ingestion repeatable, ordered, and embedding-compatible</summary>
+        <div class="finding-body">
+          <p><strong>Evidence.</strong> <code>upsert_chunks()</code> calls <code>add_documents(chunks)</code> without stable IDs or a source-replacement policy. The loader sets <code>seen=False</code> on ingested material. Chunk indices are stored, but chapter fetches return Qdrant scroll order without sorting by those indices. Vector dimension is fixed at 384 while the embedding model is configurable.</p>
+          <p><strong>Consequence.</strong> The application itself cannot guarantee re-ingestion replaces existing content or removes stale chunks. Fresh copies can coexist with old seen/unseen state. Summary input and the quiz's truncated first chunks need not follow chapter reading order. An alternate embedding model can be incompatible with the existing vector schema; matching dimension alone also does not imply matching embedding space.</p>
+          <p><strong>Smallest complete change.</strong> Define a portable source/chapter identifier and versioned chunk IDs; use explicit IDs and a scoped stale-chunk cleanup policy. Sort chapter content by stored chunk index before summaries or truncation. Validate model identity and dimension against collection metadata, not just a hard-coded constant. Changing models requires a new/versioned collection and complete re-embedding, not reusing old vectors. Keep user completion separate from corpus replacement as recommended above.</p>
+          <p><strong>Migration guardrail.</strong> Inspect/export the current collection first. Build the new version alongside it, validate counts and retrieval, then switch configuration; never delete the live collection as an initial cleanup step. Surface source files that yield zero valid chunks instead of treating silent loss as successful ingestion.</p>
+          <p><strong>Reach.</strong> Loader metadata, chunker, pipeline/store, quiz chapter reads, collection configuration, migration/runbook, ingestion tests.</p>
+          <p><strong>Acceptance.</strong> Ingesting identical input twice preserves IDs and point count. Editing a source leaves no stale chunks in its active version. Shuffled storage results reconstruct the original sequence. Incompatible model/collection pairs fail clearly before writes. <strong>Size:</strong> medium. <strong>Confidence:</strong> high for missing guarantees; no live collection inspection performed.</p>
+          <p class="evidence">Sources: <a href="../ingestion/store.py">ingestion/store.py:28,35,55,65</a>; <a href="../ingestion/loader.py">ingestion/loader.py:134</a>; <a href="../ingestion/chunker.py">ingestion/chunker.py:145</a>; <a href="../ingestion/pipeline.py">ingestion/pipeline.py:58</a>; <a href="../quiz/quiz_service.py">quiz/quiz_service.py:375</a>; <a href="../config/settings.py">config/settings.py:36</a>.</p>
+        </div>
+      </details>
+
+      <details open id="finding-8">
+        <summary><span class="badge p2">P2</span> 8. Test the architectural invariants, not only endpoint shapes</summary>
+        <div class="finding-body">
+          <p><strong>Evidence.</strong> Nine tests cover five API happy paths, two ingestion cases, quiz grading, and one SQLite-backed relational test. API graph calls are stubbed. No checked-in CI workflow was found in the current working tree. Ruff and strict Pyright are configured, but their results were not measured in this review.</p>
+          <p><strong>Smallest complete change.</strong> Add offline tests for graph routing, retry exhaustion, completion/no-content outcomes, malformed model output, and input/error boundaries. Add narrow Redis/Qdrant integration tests for atomic updates, compaction, corpus replacement, and content ordering. Use real PostgreSQL in an integration job for migration and concurrency semantics; SQLite does not prove those. Add a CI workflow using the existing lockfile and documented lint/type/test commands, after measuring and addressing or explicitly tracking the baseline.</p>
+          <p><strong>Reach.</strong> Existing tests, small fake dependency fixtures, optional service integration job, CI configuration, developer instructions. Do not require paid/live LLM calls for normal CI.</p>
+          <p><strong>Acceptance.</strong> A PR cannot merge with broken graph terminal behavior, public quiz answers, unsafe progress transitions, or an incompatible declared API shape. Each recommendation's acceptance check becomes a focused regression test. <strong>Size:</strong> medium, spread across changes. <strong>Confidence:</strong> high.</p>
+          <p class="evidence">Sources: <a href="../tests/test_api_contract.py">tests/test_api_contract.py:52</a>; <a href="../tests/test_ingestion.py">tests/test_ingestion.py:14,38</a>; <a href="../tests/test_quiz_grading.py">tests/test_quiz_grading.py:31</a>; <a href="../tests/test_database_models.py">tests/test_database_models.py:17</a>; <a href="../pyproject.toml">pyproject.toml</a>.</p>
+        </div>
+      </details>
+
+      <details open id="finding-9">
+        <summary><span class="badge p2">P2</span> 9. Make configuration and operational outcomes truthful</summary>
+        <div class="finding-body">
+          <p><strong>Evidence.</strong> Quiz TTL/count settings exist, but quiz code uses a constant/default; Ollama URL/model fields are not directly passed by the graph code. Graph nodes mostly print; quiz mixes logging and print, and topic search swallows exceptions. FastAPI serves static assets, while the LangGraph manifest serves only graph endpoints. There are no explicit application health/readiness endpoints in the reviewed server.</p>
+          <p><strong>Smallest complete change.</strong> Wire supported settings through one construction path, or remove/deprecate redundant knobs and document provider-specific configuration accurately. Add structured logs with request/run ID, served chapter, retry count, dependency failures, and timings without logging raw conversation content by default. Distinguish readiness from liveness and define which dependencies are required versus optional. Document FastAPI/UI and LangGraph as separate deployment surfaces; configure the production ASGI command rather than using the reload-enabled development entry point.</p>
+          <p><strong>Reach.</strong> Settings, model/client initialization, quiz defaults/cache TTL, API error mapping, observability, environment template, README and deployment docs. Keep tracing optional and avoid sending private conversation content to third-party telemetry without an explicit policy.</p>
+          <p><strong>Acceptance.</strong> Overridden TTL/count/provider settings affect behavior in unit tests. Dependency failure logs identify the failing operation, and readiness reflects required-service availability without invoking the LLM on every probe. Both documented deployment commands expose exactly their promised endpoints. <strong>Size:</strong> small to medium. <strong>Confidence:</strong> high.</p>
+          <p class="evidence">Sources: <a href="../config/settings.py">config/settings.py:32,62,63,66</a>; <a href="../quiz/quiz_service.py">quiz/quiz_service.py:33,173,417,487</a>; <a href="../frontend/server.py">frontend/server.py:159,162</a>; <a href="../langgraph.json">langgraph.json</a>; <a href="../README.md">README.md</a>.</p>
+        </div>
+      </details>
+
+      <details open id="finding-10">
+        <summary><span class="badge p3">P3</span> 10. Split UI responsibilities only where behavior benefits</summary>
+        <div class="finding-body">
+          <p><strong>Evidence.</strong> One React source module holds chat, teaching, quiz generation, submission, review, and retry. Fetch/error parsing is repeated; quiz generation is implemented in both the app and overlay. Loading state is represented by several independent booleans. Quiz choices are clickable labels rather than native radio inputs, and the overlay has no dialog/focus-management semantics.</p>
+          <p><strong>Smallest complete change.</strong> Extract the existing quiz overlay into its own component and reuse one small API request helper with the backend's explicit error schema. Move feature behavior into focused hooks only if needed after that extraction. Use native radio groups for answers and an accessible dialog with focus entry, Escape handling, and focus restoration. Keep React state; no global state library or frontend framework rewrite is justified.</p>
+          <p><strong>Reach.</strong> React app/quiz component, CSS, API error responses, UI tests, rebuilt static assets. Preserve existing source citations and don't start rendering arbitrary model HTML.</p>
+          <p><strong>Acceptance.</strong> Keyboard-only users can open, answer, submit, and close a quiz with predictable focus. Generation/retry errors retain a coherent screen state; duplicate submit is prevented; the UI and backend agree on partial/exhausted outcomes. <strong>Size:</strong> small to medium. <strong>Confidence:</strong> high.</p>
+          <p class="evidence">Sources: <a href="../frontend/ui/src/App.jsx">frontend/ui/src/App.jsx:11,25,51,167,216,251</a>; <a href="../frontend/ui/vite.config.js">frontend/ui/vite.config.js:12</a>; <a href="../frontend/ui/package.json">frontend/ui/package.json</a>.</p>
+        </div>
+      </details>
+    </section>
+
+    <section id="roadmap" aria-labelledby="roadmap-title">
+      <h2 id="roadmap-title">Implementation order and safe rollout</h2>
+      <div class="table-wrap">
+        <table>
+          <caption>Ship small vertical changes; do not combine persistence migration, API redesign, and a UI rewrite in one release.</caption>
+          <thead><tr><th scope="col">Stage</th><th scope="col">Deliverable</th><th scope="col">Depends on</th><th scope="col">Exit check</th></tr></thead>
+          <tbody>
+            <tr><td><strong>0. Decide</strong></td><td>Document single-user/multi-user scope, completion policy, and supported entry-point semantics.</td><td>Nothing</td><td>No ambiguous ownership or silent policy changes.</td></tr>
+            <tr><td><strong>1. Guard current behavior</strong></td><td>Add focused offline regression tests; measure lint/type baseline. Extract shared chat orchestration and inject fakes.</td><td>Stage 0</td><td>Existing API contracts preserved; entry-point differences are intentional and tested.</td></tr>
+            <tr><td><strong>2. Fix local correctness</strong></td><td>Offload blocking calls; unify summary rules/results; validate quiz/cache schemas and error mapping.</td><td>Stage 1</td><td>Concurrency responsiveness, validation boundaries, and missing-answer tests pass.</td></tr>
+            <tr><td><strong>3. Stabilize content/state</strong></td><td>Atomic progress/compaction; stable chunk IDs, ordering, source versions, and model compatibility checks.</td><td>Completion policy + store seams; can proceed independently of UI cleanup</td><td>Fault injection and repeated ingestion preserve data invariants; rollback/export verified.</td></tr>
+            <tr><td><strong>4. Multi-user gate</strong></td><td>If needed: trusted session context, transactional SQL progress/completions, scoped memory/quiz ownership, staged legacy migration.</td><td>Stages 0, 1, and 3; migrate before exposing concurrent accounts</td><td>Two-session isolation and PostgreSQL migration/concurrency tests pass.</td></tr>
+            <tr><td><strong>5. Operational polish</strong></td><td>Truthful config, readiness/logging, CI gates, focused UI extraction and accessibility.</td><td>Stable contracts; CI/logging can start earlier</td><td>Documented deployments and keyboard/UI flows verified.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout warning" style="margin-top:1rem">
+        <strong>Explicitly defer:</strong> microservices, Kubernetes, an event bus, a generic repository framework, a global frontend state library, and wholesale TypeScript conversion. Also defer durable background jobs/streaming until observed latency and retry requirements demand them. Never defer request validation, data-preserving migrations, state isolation for multi-user deployment, or accessible controls.
+      </div>
+    </section>
+
+    <section id="verification" aria-labelledby="verification-title">
+      <h2 id="verification-title">Verification and confidence</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Executed and observed</h3>
+          <ul>
+            <li>Reviewed source paths across HTTP/CLI, UI, graphs, ingestion, memory, quiz, settings, relational persistence, tests, and deployment docs.</li>
+            <li>Traced graph/store/memory callers to identify all change surfaces; checked tracked files and the current dirty working tree.</li>
+            <li><code>.\.venv\Scripts\python.exe -m pytest -q</code>: <strong>9 passed, 1 warning in 8.54s</strong>.</li>
+            <li>The warning comes from the <code>langchain_community</code> loader import and reports that package is being sunset. Consider replacing the loader with the already-used PyMuPDF API as a separate compatibility cleanup, preserving page metadata/tests.</li>
+            <li>The report is standalone HTML/CSS with no scripts, remote assets, fonts, or runtime dependencies.</li>
+            <li>Report checks passed: 10 recommendation sections, unique anchors, and 61 valid local links. Browser checks at 1440px and 390px found no horizontal overflow or remote resource requests; recommendation disclosure controls opened and closed successfully.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Not established by this review</h3>
+          <ul>
+            <li>No live LLM, Qdrant, Redis failure/concurrency, or PostgreSQL migration tests; existing tests do not establish end-to-end production behavior.</li>
+            <li>No load test, retrieval-quality evaluation, model-cost measurement, full frontend interaction test, or production topology inspection.</li>
+            <li>Ruff, Pyright, and the application UI build were not run; passing pytest is not a lint/type/build certification.</li>
+            <li>This is an architecture review, not a penetration test or exhaustive security audit.</li>
+            <li>No application refactoring, dependency upgrade, data migration, or commit was performed. Pre-existing local changes were retained.</li>
+          </ul>
+        </div>
+      </div>
+      <p class="muted">Source links are relative to this report and work when it stays in the repository's docs directory. Line numbers identify the reviewed working-tree snapshot, not permanent anchors. Keep the report with the repository or update its links if moving it elsewhere.</p>
+    </section>
+    <footer>
+      <strong>Bottom line:</strong> invest first in explicit ownership, deterministic outcomes, and recoverable writes. Keep the deployment and dependency structure small. The recommendations above are a staged improvement plan, not changes already implemented.
+    </footer>
+  </main>
+</body>
+</html>

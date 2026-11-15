@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import os
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     llm_temperature: float = Field(default=0.2)
     ollama_base_url: str = Field(default="http://localhost:11434")
     ollama_model: str = Field(default="llama3.2")
+    llm_key_encryption_key: SecretStr = Field(default=SecretStr(""))
+    llm_session_ttl_seconds: int = Field(default=43200, ge=60, le=604800)
 
     # Embeddings
     embedding_model_name: str = Field(default="sentence-transformers/all-MiniLM-L12-v2")

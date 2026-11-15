@@ -1,0 +1,511 @@
+{
+  "meta": {
+    "generatedAt": "2026-11-09T18:55:11.287Z",
+    "rangeLabel": "all",
+    "agents": [
+      "claude"
+    ],
+    "projectFilter": "all",
+    "totals": {
+      "sessions": 1,
+      "durationMs": 328792,
+      "turns": 20,
+      "files": 16,
+      "netLines": 101,
+      "toolCallsTotal": 41,
+      "toolSuccessRate": 100,
+      "totalCostUSD": 0.06661890200000001,
+      "cacheReadCostUSD": 0.012510382000000002,
+      "pricedSessions": 1
+    },
+    "unpricedModels": [],
+    "estimatedModels": [],
+    "localModels": [],
+    "coverage": [
+      {
+        "agentName": "claude",
+        "total": 1,
+        "priced": 1,
+        "withLog": 1
+      }
+    ],
+    "userEmail": "swayam_shivkumarchandak@epam.com",
+    "periodStart": "2026-11-09T18:09:45.535Z",
+    "periodEnd": "2026-11-09T18:15:14.327Z"
+  },
+  "sessions": [
+    {
+      "sessionId": "f778d739-89fe-4f9f-bfac-e5d872af9a86",
+      "agentName": "claude",
+      "provider": "ai-run-sso",
+      "title": "/model",
+      "project": "C:\\Users\\SwayamShivkumarChand\\Desktop\\Swayam\\devraj pant\\financial-study",
+      "branch": "fix/code-refactor",
+      "startTime": 1794247785535,
+      "durationMs": 328792,
+      "turns": 20,
+      "fileOps": 16,
+      "linesAdded": 105,
+      "linesRemoved": 4,
+      "linesModified": 0,
+      "netLines": 101,
+      "filesChanged": 1,
+      "filesWritten": 1,
+      "filesEdited": 1,
+      "toolCallsTotal": 41,
+      "toolCallsSuccess": 41,
+      "toolCallsFailure": 0,
+      "models": [
+        "claude-haiku-5-5"
+      ],
+      "languages": [
+        "markdown",
+        "python",
+        "javascript"
+      ],
+      "tools": [
+        {
+          "toolName": "Read",
+          "totalCalls": 18,
+          "successCount": 18,
+          "failureCount": 0,
+          "successRate": 100
+        },
+        {
+          "toolName": "Bash",
+          "totalCalls": 10,
+          "successCount": 10,
+          "failureCount": 0,
+          "successRate": 100
+        },
+        {
+          "toolName": "Grep",
+          "totalCalls": 7,
+          "successCount": 7,
+          "failureCount": 0,
+          "successRate": 100
+        },
+        {
+          "toolName": "Glob",
+          "totalCalls": 2,
+          "successCount": 2,
+          "failureCount": 0,
+          "successRate": 100
+        },
+        {
+          "toolName": "Agent",
+          "totalCalls": 1,
+          "successCount": 1,
+          "failureCount": 0,
+          "successRate": 100
+        },
+        {
+          "toolName": "Write",
+          "totalCalls": 1,
+          "successCount": 1,
+          "failureCount": 0,
+          "successRate": 100
+        },
+        {
+          "toolName": "AskUserQuestion",
+          "totalCalls": 1,
+          "successCount": 1,
+          "failureCount": 0,
+          "successRate": 100
+        },
+        {
+          "toolName": "Edit",
+          "totalCalls": 1,
+          "successCount": 1,
+          "failureCount": 0,
+          "successRate": 100
+        }
+      ],
+      "tokens": {
+        "input": 42,
+        "output": 40731,
+        "cacheRead": 1152993,
+        "cacheCreation": 150675,
+        "cacheCreation1h": 150675,
+        "total": 1344441
+      },
+      "costUSD": 0.06661890200000001,
+      "cacheReadCostUSD": 0.012510382000000002,
+      "perModelCost": [
+        {
+          "model": "claude-haiku-5-5",
+          "tokens": {
+            "input": 8,
+            "output": 7787,
+            "cacheRead": 172541,
+            "cacheCreation": 52861,
+            "cacheCreation1h": 52861,
+            "total": 233197
+          },
+          "costUSD": 0.01619191,
+          "unpriced": false
+        },
+        {
+          "model": "claude-haiku-5-5",
+          "tokens": {
+            "input": 34,
+            "output": 32944,
+            "cacheRead": 980452,
+            "cacheCreation": 97814,
+            "cacheCreation1h": 97814,
+            "total": 1111244
+          },
+          "costUSD": 0.050426992000000004,
+          "unpriced": false
+        }
+      ],
+      "hadLog": true,
+      "agentSessionFile": "C:\\Users\\SwayamShivkumarChand\\.claude\\projects\\C--Users-SwayamShivkumarChand-Desktop-Swayam-devraj-pant-financial-study\\c9fa3c0c-a36b-44d3-a19d-f645353de2a8.jsonl",
+      "costSeries": [
+        {
+          "t": 1794247890093,
+          "cost": 0.009064000000000001,
+          "tokens": 44364
+        },
+        {
+          "t": 1794247895530,
+          "cost": 0.011001740000000001,
+          "tokens": 94540
+        },
+        {
+          "t": 1794247901178,
+          "cost": 0.012741093000000002,
+          "tokens": 148212
+        },
+        {
+          "t": 1794247928998,
+          "cost": 0.014792450000000002,
+          "tokens": 206392
+        },
+        {
+          "t": 1794247944334,
+          "cost": 0.016619748000000004,
+          "tokens": 268000
+        },
+        {
+          "t": 1794247964550,
+          "cost": 0.019110082000000004,
+          "tokens": 333111
+        },
+        {
+          "t": 1794247968582,
+          "cost": 0.020492702000000005,
+          "tokens": 398930
+        },
+        {
+          "t": 1794247972149,
+          "cost": 0.025697902000000005,
+          "tokens": 420659
+        },
+        {
+          "t": 1794247977196,
+          "cost": 0.026728195000000007,
+          "tokens": 487281
+        },
+        {
+          "t": 1794247983360,
+          "cost": 0.031011474000000008,
+          "tokens": 524595
+        },
+        {
+          "t": 1794247993325,
+          "cost": 0.03677638700000001,
+          "tokens": 582811
+        },
+        {
+          "t": 1794248002023,
+          "cost": 0.04019593500000001,
+          "tokens": 650275
+        },
+        {
+          "t": 1794248011946,
+          "cost": 0.04210571100000001,
+          "tokens": 720822
+        },
+        {
+          "t": 1794248012135,
+          "cost": 0.04591326100000001,
+          "tokens": 793660
+        },
+        {
+          "t": 1794248017484,
+          "cost": 0.04831788300000001,
+          "tokens": 867117
+        },
+        {
+          "t": 1794248023049,
+          "cost": 0.04986007200000001,
+          "tokens": 939413
+        },
+        {
+          "t": 1794248062451,
+          "cost": 0.054757118000000014,
+          "tokens": 1019252
+        },
+        {
+          "t": 1794248068930,
+          "cost": 0.05615242400000001,
+          "tokens": 1100484
+        },
+        {
+          "t": 1794248116468,
+          "cost": 0.05763375000000001,
+          "tokens": 1175064
+        },
+        {
+          "t": 1794248119121,
+          "cost": 0.05869164200000001,
+          "tokens": 1249768
+        },
+        {
+          "t": 1794248122175,
+          "cost": 0.06661890200000001,
+          "tokens": 1344441
+        }
+      ],
+      "dispatches": [
+        {
+          "kind": "command",
+          "name": "model",
+          "start": 1794247797253,
+          "durationMs": 0,
+          "id": "command:3ec02fb0-0f99-484b-a6af-a70b174c1102:0",
+          "ownerAgentId": "f778d739-89fe-4f9f-bfac-e5d872af9a86",
+          "relationshipStatus": "root",
+          "elapsedMs": 0,
+          "status": "completed",
+          "attributionStatus": "unavailable",
+          "attributionScope": "owner-window"
+        },
+        {
+          "kind": "agent",
+          "name": "Plan",
+          "start": 1794247964550,
+          "durationMs": 47,
+          "id": "toolu_bdrk_01LCdVAgHucrZWB6bnh6MhiN",
+          "ownerAgentId": "f778d739-89fe-4f9f-bfac-e5d872af9a86",
+          "agentId": "a5b57e982b1a3571d",
+          "depth": 1,
+          "relationshipStatus": "resolved",
+          "acknowledgedAt": 1794247964597,
+          "observedEnd": 1794248122175,
+          "completedAt": 1794248123540,
+          "elapsedMs": 158990,
+          "status": "completed",
+          "costUSD": 0.03304047,
+          "inclusiveCostUSD": 0.03304047,
+          "attributionStatus": "exact",
+          "attributionScope": "own",
+          "tokens": {
+            "input": 18,
+            "output": 26051,
+            "cacheRead": 481237,
+            "cacheCreation": 76004,
+            "cacheCreation1h": 76004,
+            "total": 583310
+          },
+          "inclusiveTokens": {
+            "input": 18,
+            "output": 26051,
+            "cacheRead": 481237,
+            "cacheCreation": 76004,
+            "cacheCreation1h": 76004,
+            "total": 583310
+          },
+          "tools": [
+            {
+              "name": "Read",
+              "calls": 12
+            },
+            {
+              "name": "Bash",
+              "calls": 5
+            },
+            {
+              "name": "Grep",
+              "calls": 4
+            },
+            {
+              "name": "Glob",
+              "calls": 1
+            }
+          ]
+        }
+      ],
+      "costSource": "native-estimate",
+      "costBasis": "standard-api-tokens",
+      "dispatchesComplete": true,
+      "rootOwnCostUSD": 0.02899416,
+      "unlinkedCostUSD": 0,
+      "unlinkedAgentIds": [],
+      "rootOwnTokens": {
+        "input": 24,
+        "output": 14680,
+        "cacheRead": 671756,
+        "cacheCreation": 74671,
+        "cacheCreation1h": 74671,
+        "total": 761131
+      },
+      "unlinkedTokens": {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheCreation": 0,
+        "cacheCreation1h": 0,
+        "total": 0
+      },
+      "modelTimeline": [
+        {
+          "t": 1794247890093,
+          "model": "claude-haiku-5-5",
+          "costUSD": 0.009064,
+          "tokens": 44364
+        },
+        {
+          "t": 1794247895530,
+          "model": "claude-haiku-5-5",
+          "costUSD": 0.00193774,
+          "tokens": 50176
+        },
+        {
+          "t": 1794247901178,
+          "model": "claude-haiku-5-5",
+          "costUSD": 0.00173935,
+          "tokens": 53672
+        },
+        {
+          "t": 1794247928998,
+          "model": "claude-haiku-5-5",
+          "costUSD": 0.00205136,
+          "tokens": 58180
+        },
+        {
+          "t": 1794247944334,
+          "model": "claude-haiku-5-5",
+          "costUSD": 0.0018273,
+          "tokens": 61608
+        },
+        {
+          "t": 1794247964550,
+          "model": "claude-haiku-5-5",
+          "costUSD": 0.00249033,
+          "tokens": 65111
+        },
+        {
+          "t": 1794247968582,
+          "model": "claude-haiku-5-5",
+          "costUSD": 0.00138262,
+          "tokens": 65819
+        },
+        {
+          "t": 1794247972149,
+          "model": "claude-haiku-5-5",
+          "costUSD": 0.0052052,
+          "tokens": 21729
+        },
+        {
+          "t": 1794247977196,
+          "model": "claude-haiku-5-5",
+          "costUSD": 0.00103029,
+          "tokens": 66622
+        },
+        {
+          "t": 1794247983360,
+          "model": "claude-haiku-5-5",
+          "costUSD": 0.00428328,
+          "tokens": 37314
+        },
+        {
+          "t": 1794247993325,
+          "model": "claude-haiku-5-5",
+          "costUSD": 0.00576491,
+          "tokens": 58216
+        },
+        {
+          "t": 1794248002023,
+          "model": "claude-haiku-5-5",
+          "costUSD": 0.00341955,
+          "tokens": 67464
+        },
+        {
+          "t": 1794248011946,
+          "model": "claude-haiku-5-5",
+          "costUSD": 0.00190978,
+          "tokens": 70547
+        },
+        {
+          "t": 1794248012135,
+          "model": "claude-haiku-5-5",
+          "costUSD": 0.00380755,
+          "tokens": 72838
+        },
+        {
+          "t": 1794248017484,
+          "model": "claude-haiku-5-5",
+          "costUSD": 0.00240462,
+          "tokens": 73457
+        },
+        {
+          "t": 1794248023049,
+          "model": "claude-haiku-5-5",
+          "costUSD": 0.00154219,
+          "tokens": 72296
+        },
+        {
+          "t": 1794248062451,
+          "model": "claude-haiku-5-5",
+          "costUSD": 0.00489705,
+          "tokens": 79839
+        },
+        {
+          "t": 1794248068930,
+          "model": "claude-haiku-5-5",
+          "costUSD": 0.00139531,
+          "tokens": 81232
+        },
+        {
+          "t": 1794248116468,
+          "model": "claude-haiku-5-5",
+          "costUSD": 0.00148133,
+          "tokens": 74580
+        },
+        {
+          "t": 1794248119121,
+          "model": "claude-haiku-5-5",
+          "costUSD": 0.00105789,
+          "tokens": 74704
+        },
+        {
+          "t": 1794248122175,
+          "model": "claude-haiku-5-5",
+          "costUSD": 0.00792726,
+          "tokens": 94673
+        }
+      ],
+      "routedTurnsPct": 0,
+      "skillInvocations": [],
+      "agentInvocations": [
+        {
+          "name": "Plan",
+          "totalCalls": 1,
+          "successCount": 1,
+          "failureCount": 0
+        }
+      ],
+      "commandInvocations": [
+        {
+          "name": "model",
+          "totalCalls": 1,
+          "successCount": 1,
+          "failureCount": 0
+        }
+      ],
+      "sessionSource": "Pure chat"
+    }
+  ]
+}

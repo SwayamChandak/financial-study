@@ -1,6 +1,28 @@
 import { useState, useRef, useEffect } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import remarkMath from 'remark-math'
+import rehypeKatex from 'rehype-katex'
+import rehypeHighlight from 'rehype-highlight'
+import 'katex/dist/katex.min.css'
+import 'github-markdown-css/github-markdown-dark.css'
+import 'highlight.js/styles/github-dark.css'
+import LLMSettings, { llmRequest } from './LLMSettings'
+import { normalizeMathDelimiters } from './markdown'
 
 function Message({ text, role }) {
+  if (role === 'bot') {
+    return (
+      <div className={`message ${role} markdown-body`}>
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm, remarkMath]}
+          rehypePlugins={[rehypeKatex, rehypeHighlight]}
+        >
+          {normalizeMathDelimiters(text)}
+        </ReactMarkdown>
+      </div>
+    )
+  }
   return (
     <div className={`message ${role}`}>
       {text}
@@ -173,7 +195,18 @@ function App() {
   const [teachDone, setTeachDone] = useState(false)
   const [quizLoading, setQuizLoading] = useState(false)
   const [quizData, setQuizData] = useState(null)
+  const [llmSettingsOpen, setLlmSettingsOpen] = useState(false)
+  const [llmConfig, setLlmConfig] = useState(null)
+  const [llmConfigError, setLlmConfigError] = useState('')
   const endRef = useRef(null)
+
+  useEffect(() => {
+    let active = true
+    llmRequest('config')
+      .then(config => { if (active) setLlmConfig(config) })
+      .catch(err => { if (active) setLlmConfigError(err.message) })
+    return () => { active = false }
+  }, [])
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -279,6 +312,13 @@ function App() {
         <div className="dot" />
         <h1>Financial Study</h1>
         <span className="subtitle">— Chatbot</span>
+        <span className="llm-badge" title={llmConfigError || 'Saved selections expire; reopen settings to refresh.'}>
+          {llmConfig?.selection
+            ? `${llmConfig.selection.provider}: ${llmConfig.selection.deployment || llmConfig.selection.model}`
+            : llmConfig ? `Defaults: ${llmConfig.defaults.chat} / ${llmConfig.defaults.study}`
+              : llmConfigError ? 'LLM settings unavailable' : 'Loading LLM settings...'}
+        </span>
+        <button className="teach-btn" onClick={() => setLlmSettingsOpen(true)}>LLM settings</button>
       </header>
 
       <div id="teach-bar">
@@ -347,6 +387,9 @@ function App() {
           quiz={quizData}
           onClose={() => { setQuizData(null) }}
         />
+      )}
+      {llmSettingsOpen && (
+        <LLMSettings onClose={() => setLlmSettingsOpen(false)} onChange={setLlmConfig} />
       )}
     </>
   )

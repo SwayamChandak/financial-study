@@ -19,12 +19,13 @@ from __future__ import annotations
 
 import re
 
-from langchain.chat_models import init_chat_model
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from config.settings import settings
 from graph.state import StudyState
 from ingestion.store import search_seen_chunks
+from llm.credentials import resolve_selection
+from llm.factory import get_chat_model
 
 _ABUSIVE_WORDS: set[str] = {
     "fuck", "shit", "ass", "bitch", "bastard", "damn", "crap",
@@ -123,7 +124,7 @@ def rag_lookup_node(state: StudyState) -> StudyState:
     if not user_input:
         return {**state, "chatbot_response": "Please provide a question.", "evidence_found": False}
 
-    llm = init_chat_model(settings.llm_chat_model_name, temperature=0.0)
+    llm = get_chat_model(resolve_selection(state.get("llm_session_id")))
 
     # ── Step 1: classify topic ──────────────────────────────────────────
     classification = llm.invoke([
@@ -138,7 +139,7 @@ def rag_lookup_node(state: StudyState) -> StudyState:
         HumanMessage(content=user_input),
     ])
 
-    if "NO" in classification.content.strip().upper():
+    if "NO" in classification.text.strip().upper():
         print("[RAG] Query rejected — not a financial topic.")
         return {
             **state,
@@ -175,7 +176,7 @@ def rag_lookup_node(state: StudyState) -> StudyState:
         HumanMessage(content=f"Context:\n{context}\n\nQuestion: {user_input}"),
     ])
 
-    if "NO" in evidence_check.content.strip().upper():
+    if "NO" in evidence_check.text.strip().upper():
         print("[RAG] Evidence gate — no direct evidence in retrieved chunks.")
         return {
             **state,
@@ -207,7 +208,7 @@ def rag_lookup_node(state: StudyState) -> StudyState:
         HumanMessage(content=f"Context:\n{context}\n\nQuestion: {user_input}"),
     ])
 
-    answer = response.content.strip()
+    answer = response.text.strip()
 
     # ── Step 6: append source citation ──────────────────────────────────
     if sources:
@@ -247,7 +248,7 @@ def validate_response_node(state: StudyState) -> StudyState:
     user_input = state.get("user_input", "")
     retry_count = state.get("rag_retry_count", 0)
 
-    llm = init_chat_model(settings.llm_chat_model_name, temperature=0.0)
+    llm = get_chat_model(resolve_selection(state.get("llm_session_id")))
 
     # ── check if answer is descriptive enough ──────────────────────────
     check = llm.invoke([
@@ -264,7 +265,7 @@ def validate_response_node(state: StudyState) -> StudyState:
         HumanMessage(content=f"Question: {user_input}\n\nAnswer: {answer}"),
     ])
 
-    passed = "PASS" in check.content.strip().upper()
+    passed = "PASS" in check.text.strip().upper()
 
     if passed:
         return {
@@ -304,7 +305,7 @@ def validate_response_node(state: StudyState) -> StudyState:
         HumanMessage(content=user_input),
     ])
 
-    new_query = improved_query.content.strip()
+    new_query = improved_query.text.strip()
 
     return {
         **state,

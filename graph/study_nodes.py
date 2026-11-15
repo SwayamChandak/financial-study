@@ -21,12 +21,13 @@ Node 4  update_progress        marks all retrieved chunks as seen in Qdrant,
 
 from __future__ import annotations
 
-from langchain.chat_models import init_chat_model
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from config.settings import settings
 from graph.state import StudyState
 from ingestion.store import fetch_all_chunks, mark_chunks_seen
+from llm.credentials import resolve_selection
+from llm.factory import get_chat_model
 from memory.progress import (
     ensure_initialized,
     get_current_chapter,
@@ -115,8 +116,9 @@ def summarise_chunks(state: StudyState) -> StudyState:
 
     combined_text = "\n\n".join(chunk.page_content for chunk in chunks)
 
-    llm = init_chat_model(
-        settings.llm_study_model_name,
+    llm = get_chat_model(
+        resolve_selection(state.get("llm_session_id")),
+        role="study",
         temperature=settings.llm_temperature,
     )
 
@@ -161,7 +163,7 @@ def summarise_chunks(state: StudyState) -> StudyState:
     )
 
     response = llm.invoke(messages)
-    summary: str = response.content  # type: ignore[assignment]
+    summary = response.text
 
     print("\n" + "=" * 60)
     print(f"SUMMARY — Module {state['current_module']}, Chapter {state['current_chapter']}")
@@ -209,7 +211,9 @@ def validate_summary_node(state: StudyState) -> StudyState:
     max_chars = total_chars * 3 // 4
     actual_chars = len(summary)
 
-    llm = init_chat_model(settings.llm_study_model_name, temperature=0.0)
+    llm = get_chat_model(
+        resolve_selection(state.get("llm_session_id")), role="study",
+    )
 
     check = llm.invoke([
         SystemMessage(
@@ -226,7 +230,7 @@ def validate_summary_node(state: StudyState) -> StudyState:
         HumanMessage(content=summary),
     ])
 
-    quality_ok = "PASS" in check.content.strip().upper()
+    quality_ok = "PASS" in check.text.strip().upper()
 
     if quality_ok and min_chars <= actual_chars <= max_chars:
         print(

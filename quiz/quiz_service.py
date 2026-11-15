@@ -19,13 +19,16 @@ from datetime import UTC, datetime
 from typing import Any
 
 import redis
-from langchain.chat_models import init_chat_model
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 from qdrant_client import QdrantClient
 from qdrant_client.models import FieldCondition, Filter, MatchValue
+from langsmith import tracing_context  # pyright: ignore[reportUnknownVariableType]
 
 from config.settings import settings
+from llm.credentials import resolve_selection
+from llm.factory import get_chat_model
+from llm.providers import LLMSelection
 from memory import memory_service
 
 logger = logging.getLogger(__name__)
@@ -47,21 +50,14 @@ class QuizService:
     """Generate, cache, and grade MCQs based on seen Qdrant content."""
 
     def __init__(self) -> None:
-        self._llm: BaseChatModel | None = None
         self._gen_lock = asyncio.Lock()
 
     # ------------------------------------------------------------------
     # LLM lazy init
     # ------------------------------------------------------------------
 
-    def _get_llm(self) -> BaseChatModel:
-        if self._llm is None:
-            self._llm = init_chat_model(
-                settings.llm_chat_model_name,
-                temperature=0.0,
-                max_tokens=4096,
-            )
-        return self._llm
+    def _get_llm(self, selection: LLMSelection | None = None) -> BaseChatModel:
+        return get_chat_model(selection, max_tokens=4096)
 
     # ------------------------------------------------------------------
     # Redis helpers
@@ -251,6 +247,7 @@ class QuizService:
         module_no: int,
         chapter_no: int,
         question_count: int,
+        selection: LLMSelection | None = None,
     ) -> list[dict]:
         """Generate *question_count* MCQs from the chapter's Qdrant content.
 
@@ -273,7 +270,9 @@ class QuizService:
 
         while remaining > 0:
             batch = min(remaining, batch_size)
-            batch_result = self._generate_batch(module_no, chapter_no, batch, content)
+            batch_result = self._generate_batch(
+                module_no, chapter_no, batch, content, selection,
+            )
             if batch_result:
                 all_questions.extend(batch_result)
                 remaining -= batch
@@ -297,6 +296,7 @@ class QuizService:
         chapter_no: int,
         batch_size: int,
         content: str,
+        selection: LLMSelection | None = None,
     ) -> list[dict]:
         """Generate *batch_size* questions in a single LLM call."""
         if batch_size < 1:
@@ -305,7 +305,7 @@ class QuizService:
         print(
             f"[Quiz] Generating {batch_size} questions for Module {module_no}, Chapter {chapter_no} …"
         )
-        llm = self._get_llm()
+        llm = self._get_llm(selection)
 
         prompt = (
             f"You are a quiz generator for financial education. Based strictly on the "
@@ -338,15 +338,17 @@ class QuizService:
         )
 
         try:
-            response = llm.invoke(
-                [
-                    SystemMessage(
-                        content="You are a precise quiz generator that outputs only valid JSON."
-                    ),
-                    HumanMessage(content=prompt),
-                ]
-            )
-            raw = response.content.strip()
+            # ThreadPoolExecutor does not inherit the request's tracing context.
+            with tracing_context(enabled=False if selection else None):
+                response = llm.invoke(
+                    [
+                        SystemMessage(
+                            content="You are a precise quiz generator that outputs only valid JSON."
+                        ),
+                        HumanMessage(content=prompt),
+                    ]
+                )
+            raw = response.text.strip()
             print(
                 f"[Quiz] LLM raw response for M{module_no} Ch{chapter_no}:\n{raw[:500]}"
             )
@@ -367,7 +369,7 @@ class QuizService:
                 "LLM quiz generation failed for M%s Ch%s: %s",
                 module_no,
                 chapter_no,
-                exc,
+                type(exc).__name__,
             )
             return []
 
@@ -414,16 +416,23 @@ class QuizService:
     # Public API
     # ------------------------------------------------------------------
 
-    async def generate_quiz(self, count: int = 10) -> dict:
+    async def generate_quiz(
+        self, count: int = 10, llm_session_id: str | None = None,
+    ) -> dict[str, object]:
         """Generate, cache, and return a quiz.
 
         Returns the quiz *without* correct answers for client display.
         The full quiz (with answers) is cached in Redis for grading.
         """
         async with self._gen_lock:
-            return await asyncio.to_thread(self._generate_quiz_sync, count)
+            return await asyncio.to_thread(
+                self._generate_quiz_sync, count, llm_session_id,
+            )
 
-    def _generate_quiz_sync(self, count: int) -> dict:
+    def _generate_quiz_sync(
+        self, count: int, llm_session_id: str | None = None,
+    ) -> dict[str, object]:
+        selection = resolve_selection(llm_session_id)
         completed = self._get_completed_chapters()
         if not completed:
             raise QuizGenerationError(
@@ -443,7 +452,7 @@ class QuizService:
 
         with ThreadPoolExecutor(max_workers=min(5, len(per_chapter) or 1)) as pool:
             fut_map = {
-                pool.submit(self._generate_for_chapter, m, c, n): (m, c)
+                pool.submit(self._generate_for_chapter, m, c, n, selection): (m, c)
                 for (m, c), n in per_chapter.items()
             }
             all_questions: list[dict] = []
@@ -475,7 +484,7 @@ class QuizService:
             "total_questions": len(all_questions),
             "questions": all_questions,
         }
-        public_quiz = {
+        public_quiz: dict[str, object] = {
             "quiz_id": quiz_id,
             "created_at": created,
             "total_questions": len(public_questions),

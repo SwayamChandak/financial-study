@@ -1,7 +1,0 @@
-{
-  "mcpServers": {
-    "docs-langchain": {
-      "serverUrl": "https://docs.langchain.com/mcp"
-    }
-  }
-}

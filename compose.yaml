@@ -1,0 +1,68 @@
+services:
+  app:
+    build: .
+    image: financial-study:local
+    restart: unless-stopped
+    init: true
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      QDRANT_URL: http://qdrant:6333
+      LLM_CHAT_MODEL_NAME: ${LLM_CHAT_MODEL_NAME:-google_genai:gemini-2.5-flash}
+      LLM_STUDY_MODEL_NAME: ${LLM_STUDY_MODEL_NAME:-google_genai:gemini-2.5-flash}
+      LLM_KEY_ENCRYPTION_KEY: ${LLM_KEY_ENCRYPTION_KEY:?Set a Fernet key in .env before starting Compose}
+      LANGSMITH_TRACING: ${LANGSMITH_TRACING:-false}
+    ports:
+      - "127.0.0.1:8010:8000"
+    volumes:
+      - ./data:/app/data
+      - huggingface_cache:/home/app/.cache/huggingface
+    depends_on:
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request, redis;
+          urllib.request.urlopen('http://127.0.0.1:8000/api/llm/providers', timeout=3).close();
+          urllib.request.urlopen('http://qdrant:6333/readyz', timeout=3).close();
+          redis.Redis.from_url('redis://redis:6379/0', socket_timeout=3).ping()
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:6380:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  qdrant:
+    image: qdrant/qdrant:v1.18.0
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6343:6333"
+      - "127.0.0.1:6344:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+volumes:
+  redis_data:
+  qdrant_data:
+  huggingface_cache:

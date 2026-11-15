@@ -34,11 +34,11 @@ def get_current_chapter() -> int:
     return 3
 
 
-def study_result() -> dict[str, str]:
+def study_result(llm_session_id: str | None = None) -> dict[str, str]:
     return {"summary": "Chapter summary"}
 
 
-def next_study_result() -> dict[str, str]:
+def next_study_result(llm_session_id: str | None = None) -> dict[str, str]:
     return {"summary": "Next chapter"}
 
 
@@ -63,7 +63,9 @@ def test_chat_request_and_response_contract(monkeypatch: pytest.MonkeyPatch) -> 
 
 
 def test_quiz_generation_contract(monkeypatch: pytest.MonkeyPatch) -> None:
-    async def generate_quiz(*, count: int) -> dict[str, object]:
+    async def generate_quiz(
+        *, count: int, llm_session_id: str | None = None,
+    ) -> dict[str, object]:
         assert count == 2
         return {
             "quiz_id": "quiz-1",
