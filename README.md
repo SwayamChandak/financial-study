@@ -230,6 +230,16 @@ Regenerate the diagram after graph edits with `uv run python -m scripts.generate
 
 ### Run the web stack with Docker Compose
 
+Quick start, from the repository root in PowerShell:
+
+```powershell
+Copy-Item .env.example .env   # then set GOOGLE_API_KEY and LLM_KEY_ENCRYPTION_KEY
+docker compose up --build -d --wait --wait-timeout 180
+docker compose exec app python main.py ingest --source-dir data
+```
+
+Then open http://localhost:8010. The steps below explain each part.
+
 Compose starts the FastAPI app with a freshly built React UI, Redis, and Qdrant.
 Models use internet providers; no Ollama container is included. PostgreSQL is
 omitted because application workflows do not use it. The separate LangGraph
@@ -256,18 +266,36 @@ settings**; a saved selection overrides the environment models. The encryption
 key is required even if you only choose a provider later. Keep it stable across
 container replacements to retain access to saved credentials.
 
-Ingest the included PDFs once before teaching/chatting:
+#### Ingest the PDFs
+
+Ingestion is a separate step; the app does not run it on startup. Run it once
+after the stack is healthy:
 
 ```powershell
 docker compose exec app python main.py ingest --source-dir data
 ```
 
-Ingestion is deliberately not automatic: the current pipeline is not guaranteed
-to deduplicate repeat runs. Use **Next Chapter** or **Restart Teaching** afterward
-to mark material studied before RAG chat and quizzes. Embeddings still run locally
-inside the app using HuggingFace, not an internet LLM; first ingestion downloads
-the embedding model. The first image build downloads large Python/ML dependencies
-and needs internet access and several GB of disk space. CPU execution is used.
+The `data` folder is bind-mounted into the container, so the 18 PDFs in
+[data/](data/) are available there without rebuilding the image. Ingestion
+embeds every chunk and writes it to Qdrant. Markdown copies of the chunks are
+written to `data/md/`.
+
+Ingestion does not deduplicate. Running it again adds duplicate vectors to
+Qdrant. To re-ingest from scratch, delete the collection first:
+
+```powershell
+docker compose exec app python -c "from qdrant_client import QdrantClient; from config.settings import settings; QdrantClient(url=settings.qdrant_url).delete_collection(settings.qdrant_collection)"
+docker compose exec app python main.py ingest --source-dir data
+```
+
+After ingesting, use **Next Chapter** or **Restart Teaching** in the UI to mark
+chapters as studied. RAG chat and quizzes only use studied chapters.
+
+Embeddings run locally inside the app with HuggingFace, not through an internet
+LLM. The first ingestion downloads the embedding model into the
+`huggingface_cache` volume. The first image build downloads large Python/ML
+dependencies and needs internet access and several GB of disk space. CPU
+execution is used.
 
 Compose overrides Redis/Qdrant URLs with container hostnames. Existing `.env`
 model choices still win over Compose defaults: replace any `ollama:...` values

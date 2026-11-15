@@ -35,6 +35,7 @@ logger = logging.getLogger(__name__)
 
 CACHE_TTL = 3600
 _MAX_CHUNKS_PER_CHAPTER = 5
+_MAX_CONSECUTIVE_BATCH_FAILURES = 3
 _CHAPTER_CONTENT_LIMIT = 3500
 
 
@@ -206,37 +207,33 @@ class QuizService:
                 "No completed chapters found — study material first."
             )
 
-        # ── recent = last 2 completed chapters ──────────────────────────
-        recent = set(completed[-2:])
+        # Recent = last 2 completed chapters.
+        recent_list = completed[-2:]
+        recent = set(recent_list)
 
         if question_chapters:
-            n = count
-            topic_n = max(1, round(n * 0.4))
-            recent_n = max(1, round(n * 0.3))
-            random_n = n - topic_n - recent_n
+            topic_target = max(1, round(count * 0.4))
+            recent_target = max(1, round(count * 0.3))
 
             topic_pool = [c for c in completed if c in question_chapters]
-            random_pool = [
-                c for c in completed if c not in topic_pool and c not in recent
-            ]
-
-            picks: list[tuple[int, int]] = []
-            picks.extend(_pick_n(topic_pool, topic_n))
-            picks.extend(_pick_n(list(recent), recent_n))
-            picks.extend(_pick_n(random_pool, random_n))
-
-            return picks[:n]
+            picks = _pick_distinct(topic_pool, topic_target)
+            picks += _pick_distinct(
+                [c for c in recent_list if c not in picks], recent_target
+            )
+            random_pool = [c for c in completed if c not in picks and c not in recent]
+            picks += _pick_distinct(random_pool, count - len(picks))
         else:
-            n = count
-            before_pool = [c for c in completed if c not in recent]
-            recent_n = max(1, round(n * 0.5))
-            before_n = n - recent_n
+            recent_target = max(1, round(count * 0.5))
+            picks = _pick_distinct(recent_list, recent_target)
+            before_pool = [c for c in completed if c not in picks and c not in recent]
+            picks += _pick_distinct(before_pool, count - len(picks))
 
-            picks = []
-            picks.extend(_pick_n(list(recent), recent_n))
-            picks.extend(_pick_n(before_pool, before_n))
+        # Fewer distinct chapters than requested: give extra questions from
+        # already-picked chapters instead of repeating a chapter in the pick list.
+        if len(picks) < count and picks:
+            picks += _pick_with_repeats(picks, count - len(picks))
 
-            return picks[:n]
+        return picks[:count]
 
     # ------------------------------------------------------------------
     # MCQ generation — one LLM call per unique chapter
@@ -249,10 +246,11 @@ class QuizService:
         question_count: int,
         selection: LLMSelection | None = None,
     ) -> list[dict]:
-        """Generate *question_count* MCQs from the chapter's Qdrant content.
+        """Generate *question_count* distinct MCQs from the chapter's Qdrant content.
 
-        If the count exceeds 2, splits into multiple LLM calls of 2 each to
-        avoid hitting output token limits.
+        Batches of 2 are requested sequentially to avoid hitting output token
+        limits. Each batch is told about questions already generated for this
+        chapter, and any duplicate it still returns is dropped.
         """
         if question_count < 1:
             return []
@@ -265,30 +263,46 @@ class QuizService:
             return []
 
         all_questions: list[dict] = []
+        seen_keys: set[str] = set()
         remaining = question_count
         batch_size = 2
+        failures = 0
 
-        while remaining > 0:
+        while remaining > 0 and failures < _MAX_CONSECUTIVE_BATCH_FAILURES:
             batch = min(remaining, batch_size)
             batch_result = self._generate_batch(
-                module_no, chapter_no, batch, content, selection,
+                module_no,
+                chapter_no,
+                batch,
+                content,
+                selection,
+                existing=[str(q.get("question", "")) for q in all_questions],
             )
-            if batch_result:
-                all_questions.extend(batch_result)
-                remaining -= batch
+            fresh: list[dict] = []
+            for q in batch_result:
+                key = _normalise_question(str(q.get("question", "")))
+                if key and key not in seen_keys:
+                    seen_keys.add(key)
+                    fresh.append(q)
+
+            if fresh:
+                all_questions.extend(fresh[:remaining])
+                remaining = question_count - len(all_questions)
+                failures = 0
             else:
-                # Batch failed — fall back to 1 question at a time
+                failures += 1
                 if batch_size > 1:
+                    # Fall back to 1 question at a time after a failed batch
                     print(
                         f"[Quiz] Batch of {batch} failed for M{module_no} Ch{chapter_no}, falling back to 1x1"
                     )
                     batch_size = 1
-                else:
-                    # Even 1 question failed — give up on this chapter
-                    print(f"[Quiz] Giving up on M{module_no} Ch{chapter_no}")
-                    break
 
-        return all_questions[:question_count]
+        if remaining > 0:
+            print(
+                f"[Quiz] Only {len(all_questions)}/{question_count} distinct questions for M{module_no} Ch{chapter_no}"
+            )
+        return all_questions
 
     def _generate_batch(
         self,
@@ -297,6 +311,7 @@ class QuizService:
         batch_size: int,
         content: str,
         selection: LLMSelection | None = None,
+        existing: list[str] | None = None,
     ) -> list[dict]:
         """Generate *batch_size* questions in a single LLM call."""
         if batch_size < 1:
@@ -306,6 +321,15 @@ class QuizService:
             f"[Quiz] Generating {batch_size} questions for Module {module_no}, Chapter {chapter_no} …"
         )
         llm = self._get_llm(selection)
+
+        avoid_block = ""
+        if existing:
+            listed = "\n".join(f"- {text}" for text in existing if text)
+            avoid_block = (
+                "6. Do NOT repeat or paraphrase these already-asked questions, and do not "
+                "test the same fact as any of them:\n"
+                f"{listed}\n"
+            )
 
         prompt = (
             f"You are a quiz generator for financial education. Based strictly on the "
@@ -318,7 +342,8 @@ class QuizService:
             f"2. Each question has exactly 4 options labeled A, B, C, D.\n"
             f"3. One option is correct; the other three are plausible distractors.\n"
             f"4. Include a brief explanation of why the correct answer is right.\n"
-            f'5. Include a "source" field with the value "Module {module_no}, Chapter {chapter_no}".\n\n'
+            f'5. Include a "source" field with the value "Module {module_no}, Chapter {chapter_no}".\n'
+            f"{avoid_block}\n"
             f"IMPORTANT — Output ONLY a valid JSON array. Each question must be an object "
             f"wrapped in {{curly braces}}, NOT in [square brackets].\n\n"
             f"Correct example:\n"
@@ -455,9 +480,18 @@ class QuizService:
                 pool.submit(self._generate_for_chapter, m, c, n, selection): (m, c)
                 for (m, c), n in per_chapter.items()
             }
-            all_questions: list[dict] = []
+            raw_questions: list[dict] = []
             for future in as_completed(fut_map):
-                all_questions.extend(future.result())
+                raw_questions.extend(future.result())
+
+        # Drop duplicates across chapters (same normalised question text).
+        all_questions: list[dict] = []
+        seen_keys: set[str] = set()
+        for q in raw_questions:
+            key = _normalise_question(str(q.get("question", "")))
+            if key and key not in seen_keys:
+                seen_keys.add(key)
+                all_questions.append(q)
 
         if not all_questions:
             raise QuizGenerationError(
@@ -559,14 +593,23 @@ class QuizService:
 # ------------------------------------------------------------------
 
 
-def _pick_n(pool: list[tuple[int, int]], n: int) -> list[tuple[int, int]]:
-    """Pick *n* items from *pool*, repeating if the pool is smaller than *n*."""
-    if not pool:
-        return []
+def _pick_distinct(pool: list[tuple[int, int]], n: int) -> list[tuple[int, int]]:
+    """Pick up to *n* distinct chapters from *pool* at random (no repeats)."""
     import random
 
-    random.shuffle(pool)
-    return [pool[i % len(pool)] for i in range(n)]
+    shuffled = list(pool)
+    random.shuffle(shuffled)
+    return shuffled[:n]
+
+
+def _pick_with_repeats(picks: list[tuple[int, int]], n: int) -> list[tuple[int, int]]:
+    """Return *n* extra chapter slots drawn round-robin from already-picked chapters."""
+    return [picks[i % len(picks)] for i in range(n)]
+
+
+def _normalise_question(text: str) -> str:
+    """Lowercase and strip punctuation/whitespace for duplicate detection."""
+    return " ".join("".join(ch for ch in text.lower() if ch.isalnum() or ch.isspace()).split())
 
 
 def _extract_json_array(text: str) -> list | None:
